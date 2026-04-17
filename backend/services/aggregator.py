@@ -114,36 +114,49 @@ def _delete_old_jobs() -> int:
 
 
 def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int, int]:
-    """يكتب الجديد فقط في Firestore (يتجاوز الموجود لتوفير quota).
+    """يكتب الجديد فقط في Firestore.
 
+    يفحص فقط الـ URLs اللي نحاول كتابتها (لا يقرأ كل الـ collection)
+    لتوفير read quota.
     يُرجع (kept_after_filter, new_written, skipped_existing).
     """
     db = get_firestore()
     coll = db.collection(settings.firestore_collection)
 
-    # 1) اجلب كل IDs الموجودة دفعة واحدة (قراءات فقط)
-    existing_ids: set[str] = set()
-    for doc in coll.select(["__name__"]).stream():
-        existing_ids.add(doc.id)
+    # فلتر + احضّر الـ refs
+    candidates: list[tuple[str, JobCreate, float, str]] = []
+    for job in jobs:
+        relevance = score_job(job)
+        if relevance < settings.min_relevance_score:
+            continue
+        category = categorize_job(job)
+        candidates.append((job.doc_id(), job, relevance, category))
 
-    kept = 0
+    kept = len(candidates)
+    if not candidates:
+        return 0, 0, 0
+
+    # تحقق من وجود كل doc_id دفعة (batched get_all)
+    # get_all يأخذ list of refs ويُرجع snapshots
+    refs = [coll.document(doc_id) for doc_id, *_ in candidates]
+    existing: set[str] = set()
+    # get_all يسمح بـ 500 ref max
+    for i in range(0, len(refs), 500):
+        chunk = refs[i : i + 500]
+        for snap in db.get_all(chunk):
+            if snap.exists:
+                existing.add(snap.id)
+
     new_written = 0
     skipped = 0
     batch = db.batch()
     in_batch = 0
 
-    for job in jobs:
-        relevance = score_job(job)
-        if relevance < settings.min_relevance_score:
-            continue
-        kept += 1
-
-        doc_id = job.doc_id()
-        if doc_id in existing_ids:
+    for doc_id, job, relevance, category in candidates:
+        if doc_id in existing:
             skipped += 1
-            continue  # تخطى — لا تكتب للوفير quota
+            continue
 
-        category = categorize_job(job)
         ref = coll.document(doc_id)
         batch.set(
             ref,

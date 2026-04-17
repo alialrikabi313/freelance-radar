@@ -1,9 +1,10 @@
 name: FreelanceRadar Scraper
 
 on:
-  # كل 10 دقائق (UTC). ملاحظة: GitHub قد يؤخر التشغيل قليلاً.
+  # كل 30 دقيقة — للبقاء ضمن حدود Firestore free tier (20K writes/day).
+  # قراءات Firestore مُكلفة أكثر من الكتابة؛ هذا التردد مناسب.
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/30 * * * *"
   # تشغيل يدوي من تبويب Actions
   workflow_dispatch:
 
