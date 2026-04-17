@@ -9,6 +9,7 @@ from .mostaql_scraper import MostaqlScraper
 from .nodesk_scraper import NoDeskScraper
 from .remoteok_scraper import RemoteOkScraper
 from .remotive_scraper import RemotiveScraper
+from .themuse_scraper import TheMuseScraper
 from .working_nomads_scraper import WorkingNomadsScraper
 from .wwr_scraper import WeWorkRemotelyScraper
 
@@ -24,6 +25,7 @@ __all__ = [
     "NoDeskScraper",
     "RemoteOkScraper",
     "RemotiveScraper",
+    "TheMuseScraper",
     "WeWorkRemotelyScraper",
     "WorkingNomadsScraper",
 ]
