@@ -1,9 +1,10 @@
 """Guru.com Scraper — سوق فريلانس عالمي (bid-based مثل Freelancer).
 
-Web scraping لصفحات public جوب listings.
+Web scraping للـ listing + detail page لجلب الميزانية الكاملة والوصف.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from datetime import datetime
@@ -15,6 +16,8 @@ from bs4 import BeautifulSoup
 from models.job import JobCreate
 
 from .base_scraper import BaseScraper
+
+DETAIL_CONCURRENCY = 3
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +58,59 @@ class GuruScraper(BaseScraper):
 
                 if len(records) < 20:
                     break
+
+        # جلب تفاصيل كل وظيفة بالموازاة (budget + description)
+        if jobs:
+            sem = asyncio.Semaphore(DETAIL_CONCURRENCY)
+
+            async def enrich(j: JobCreate) -> JobCreate:
+                async with sem:
+                    return await self._enrich_detail(j)
+
+            jobs = list(await asyncio.gather(*(enrich(j) for j in jobs)))
         return jobs
+
+    async def _enrich_detail(self, job: JobCreate) -> JobCreate:
+        resp = await self._get(job.url)
+        if resp is None:
+            return job
+        soup = BeautifulSoup(resp.text, "lxml")
+
+        # Budget
+        budget_min, budget_max = job.budget_min, job.budget_max
+        budget_el = soup.select_one(".jobHeading__budget")
+        if budget_el:
+            budget_min, budget_max = _parse_guru_budget(
+                budget_el.get_text(" ", strip=True)
+            )
+
+        # Description
+        desc_el = soup.select_one(
+            ".jobDetails__description--richText"
+        ) or soup.select_one(".jobDetails__description")
+        description = job.description
+        if desc_el:
+            description = self.clean_text(
+                desc_el.get_text(" ", strip=True), limit=2000
+            )
+
+        return JobCreate(
+            platform=job.platform,
+            title=job.title,
+            description=description,
+            url=job.url,
+            published_at=job.published_at,
+            budget_min=budget_min,
+            budget_max=budget_max,
+            currency=job.currency,
+            skills=job.skills,
+            client_name=job.client_name,
+            client_rating=job.client_rating,
+            client_jobs_posted=job.client_jobs_posted,
+            proposals_count=job.proposals_count,
+            is_hourly=job.is_hourly,
+            country=job.country,
+        )
 
     def _parse(self, rec) -> Optional[JobCreate]:
         title_link = rec.select_one("h2 a") or rec.select_one("a.title")
@@ -104,6 +159,29 @@ class GuruScraper(BaseScraper):
 
 _BUDGET_RE = re.compile(r"\$?\s*([\d,]+)\s*(?:-|to)\s*\$?\s*([\d,]+)")
 _SINGLE_BUDGET = re.compile(r"\$?\s*([\d,]+)")
+# Guru يعرض الميزانية بصيغة "$1k-$2.5k" أو "$500-$1500"
+_GURU_K_RE = re.compile(
+    r"\$\s?([\d.]+)\s?k?\s*(?:-|to)\s*\$?\s?([\d.]+)\s?k?",
+    re.IGNORECASE,
+)
+
+
+def _parse_guru_budget(text: str) -> tuple[Optional[float], Optional[float]]:
+    if not text:
+        return None, None
+    # "$1k-$2.5k" → 1000, 2500
+    m = _GURU_K_RE.search(text)
+    if m:
+        try:
+            lo = float(m.group(1))
+            hi = float(m.group(2))
+            if "k" in text.lower():
+                lo *= 1000
+                hi *= 1000
+            return lo, hi
+        except ValueError:
+            pass
+    return _parse_budget(text)
 
 
 def _parse_budget(text: str) -> tuple[Optional[float], Optional[float]]:

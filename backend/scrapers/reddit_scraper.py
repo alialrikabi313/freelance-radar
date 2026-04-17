@@ -82,7 +82,9 @@ class RedditScraper(BaseScraper):
         if require_hiring and not _HIRING_RE.search(title):
             return None
 
-        summary = getattr(entry, "summary", "") or ""
+        summary_raw = getattr(entry, "summary", "") or ""
+        # Reddit RSS يحوي HTML و markers مثل <!-- SC_OFF --> — ننظّفها
+        summary = _clean_reddit_summary(summary_raw)
 
         # تأكد أنه برمجي
         if not self.is_programming_related(title, summary):
@@ -124,6 +126,30 @@ class RedditScraper(BaseScraper):
             client_name=client_name,
             country=f"r/{subreddit}",
         )
+
+
+def _clean_reddit_summary(html: str) -> str:
+    """يزيل HTML markers من Reddit RSS summary."""
+    if not html:
+        return ""
+    from bs4 import BeautifulSoup
+    # نزيل علامات SC_OFF/SC_ON والتعليقات
+    cleaned = re.sub(r"<!--\s*SC_O(?:FF|N)\s*-->", "", html)
+    # نحذف رابط "submitted by /u/..." في آخر الـ summary
+    cleaned = re.sub(
+        r"<span>submitted by.*?</span>.*$",
+        "",
+        cleaned,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    # تحويل HTML إلى نص نظيف
+    soup = BeautifulSoup(cleaned, "lxml")
+    text = soup.get_text(" ", strip=True)
+    # إزالة سطور "submitted by" الباقية
+    text = re.sub(r"submitted by\s+/u/\S+.*$", "", text, flags=re.IGNORECASE)
+    # إزالة "[link] [comments]"
+    text = re.sub(r"\[link\]\s*\[comments\]", "", text, flags=re.IGNORECASE)
+    return text.strip()
 
 
 def _parse_budget(text: str) -> tuple[Optional[float], Optional[float]]:

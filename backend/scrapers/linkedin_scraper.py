@@ -27,6 +27,7 @@ from .base_scraper import BaseScraper
 logger = logging.getLogger(__name__)
 
 API_URL = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search"
+DETAIL_URL = "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
 
 # استعلامات متنوعة — نركّز على remote + keywords تقنية
 # f_WT=2 = Remote only
@@ -64,9 +65,85 @@ class LinkedInScraper(BaseScraper):
                         continue
                     seen.add(job.url)
                     jobs.append(job)
-                # تأخير إضافي بين الصفحات (حذر)
                 await asyncio.sleep(random.uniform(3, 6))
+
+        # غناء: جلب وصف كل وظيفة من detail endpoint
+        if jobs and not rate_limited:
+            jobs = await self._enrich_descriptions(jobs)
         return jobs
+
+    async def _enrich_descriptions(
+        self, jobs: List[JobCreate]
+    ) -> List[JobCreate]:
+        """يجلب الوصف لكل وظيفة. يتوقف عند أول rate limit."""
+        enriched: List[JobCreate] = []
+        throttled = False
+        for job in jobs:
+            if throttled:
+                enriched.append(job)
+                continue
+            job_id = _extract_job_id(job.url)
+            if not job_id:
+                enriched.append(job)
+                continue
+            desc, is_throttled = await self._fetch_description(job_id)
+            if is_throttled:
+                throttled = True
+                enriched.append(job)
+                continue
+            if desc:
+                enriched.append(
+                    JobCreate(
+                        platform=job.platform,
+                        title=job.title,
+                        description=desc,
+                        url=job.url,
+                        published_at=job.published_at,
+                        budget_min=job.budget_min,
+                        budget_max=job.budget_max,
+                        currency=job.currency,
+                        skills=job.skills,
+                        client_name=job.client_name,
+                        client_rating=job.client_rating,
+                        client_jobs_posted=job.client_jobs_posted,
+                        proposals_count=job.proposals_count,
+                        is_hourly=job.is_hourly,
+                        country=job.country,
+                    )
+                )
+            else:
+                enriched.append(job)
+        return enriched
+
+    async def _fetch_description(
+        self, job_id: str
+    ) -> tuple[str, bool]:
+        await self._polite_delay()
+        headers = {
+            "User-Agent": self._random_user_agent(),
+            "Accept": "text/html",
+            "Referer": "https://www.linkedin.com/jobs/search/",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+                resp = await client.get(
+                    DETAIL_URL.format(job_id=job_id), headers=headers
+                )
+                if resp.status_code in (429, 999, 403):
+                    return "", True
+                if resp.status_code != 200:
+                    return "", False
+                soup = BeautifulSoup(resp.text, "lxml")
+                desc_el = soup.select_one(
+                    ".show-more-less-html__markup"
+                ) or soup.select_one(".description__text")
+                if desc_el:
+                    return self.clean_text(
+                        desc_el.get_text(" ", strip=True), limit=2000
+                    ), False
+        except httpx.HTTPError:
+            return "", False
+        return "", False
 
     async def _fetch(
         self, base_params: dict, start: int
@@ -159,3 +236,9 @@ def _parse_date(raw) -> datetime:
         )
     except (ValueError, TypeError):
         return datetime.utcnow()
+
+
+def _extract_job_id(url: str) -> str:
+    """استخرج job ID من URL مثل /jobs/view/flutter-developer-at-xyz-4401340089."""
+    m = re.search(r"-(\d{7,})(?:/|$|\?)", url)
+    return m.group(1) if m else ""

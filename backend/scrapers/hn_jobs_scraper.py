@@ -57,6 +57,23 @@ class HnJobsScraper(BaseScraper):
             title = hit.get("title") or ""
             text = hit.get("story_text") or ""
 
+            # لو النص فارغ، نجلبه من item endpoint
+            if not text and hit.get("objectID"):
+                item_resp = await self._get(
+                    f"https://hn.algolia.com/api/v1/items/{hit['objectID']}"
+                )
+                if item_resp is not None:
+                    try:
+                        item = item_resp.json()
+                        text = item.get("text") or ""
+                    except ValueError:
+                        pass
+
+            # نزيل HTML tags الأساسية
+            if text:
+                from bs4 import BeautifulSoup
+                text = BeautifulSoup(text, "lxml").get_text(" ", strip=True)
+
             if not self.is_programming_related(title, text):
                 continue
 
