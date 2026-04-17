@@ -113,13 +113,22 @@ def _delete_old_jobs() -> int:
     return deleted
 
 
-def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int]:
-    """يكتب/يحدّث الوظائف في Firestore. يُرجع (kept, written)."""
+def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int, int]:
+    """يكتب الجديد فقط في Firestore (يتجاوز الموجود لتوفير quota).
+
+    يُرجع (kept_after_filter, new_written, skipped_existing).
+    """
     db = get_firestore()
     coll = db.collection(settings.firestore_collection)
 
+    # 1) اجلب كل IDs الموجودة دفعة واحدة (قراءات فقط)
+    existing_ids: set[str] = set()
+    for doc in coll.select(["__name__"]).stream():
+        existing_ids.add(doc.id)
+
     kept = 0
-    written = 0
+    new_written = 0
+    skipped = 0
     batch = db.batch()
     in_batch = 0
 
@@ -129,18 +138,20 @@ def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int]:
             continue
         kept += 1
 
-        category = categorize_job(job)
         doc_id = job.doc_id()
+        if doc_id in existing_ids:
+            skipped += 1
+            continue  # تخطى — لا تكتب للوفير quota
+
+        category = categorize_job(job)
         ref = coll.document(doc_id)
         batch.set(
             ref,
             job.to_firestore(relevance_score=relevance, category=category),
-            merge=True,
         )
         in_batch += 1
-        written += 1
+        new_written += 1
 
-        # Firestore batch حد أقصى 500 عملية
         if in_batch >= 450:
             batch.commit()
             batch = db.batch()
@@ -149,7 +160,7 @@ def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int]:
     if in_batch > 0:
         batch.commit()
 
-    return kept, written
+    return kept, new_written, skipped
 
 
 async def aggregate_and_store() -> dict:
@@ -158,8 +169,7 @@ async def aggregate_and_store() -> dict:
     logger.info("[aggregator] round started at %s", started.isoformat())
 
     raw_jobs = await run_all_scrapers()
-    # نكتب في thread tangential لأن firestore SDK متزامن
-    kept, written = await asyncio.to_thread(_write_jobs, raw_jobs)
+    kept, written, skipped = await asyncio.to_thread(_write_jobs, raw_jobs)
     deleted = await asyncio.to_thread(_delete_old_jobs)
 
     finished = datetime.utcnow()
@@ -169,7 +179,8 @@ async def aggregate_and_store() -> dict:
         "duration_seconds": (finished - started).total_seconds(),
         "scraped_total": len(raw_jobs),
         "kept_after_filter": kept,
-        "written_to_firestore": written,
+        "new_written": written,
+        "skipped_existing": skipped,
         "deleted_old_jobs": deleted,
     }
     logger.info("[aggregator] round finished: %s", summary)
