@@ -12,11 +12,17 @@ import re
 from datetime import datetime
 from typing import List, Optional
 
+import httpx
+
 from models.job import JobCreate
 
 from .base_scraper import BaseScraper
 
 logger = logging.getLogger(__name__)
+
+# Reddit يتطلب User-Agent مميّز ومحدد الهوية.
+# Reddit يحظر generic UAs (خصوصاً من cloud IPs).
+REDDIT_UA = "FreelanceRadar/1.0 (Personal job aggregator; +github.com/alialrikabi313)"
 
 SUBREDDITS = [
     # subreddit, require_hiring_tag
@@ -51,15 +57,8 @@ class RedditScraper(BaseScraper):
         seen: set[str] = set()
 
         for subreddit, require_hiring in SUBREDDITS:
-            resp = await self._get(
-                f"https://www.reddit.com/r/{subreddit}/new.json",
-                params={"limit": "100"},
-            )
-            if resp is None:
-                continue
-            try:
-                data = resp.json()
-            except ValueError:
+            data = await self._fetch_subreddit(subreddit)
+            if data is None:
                 continue
 
             posts = data.get("data", {}).get("children", []) or []
@@ -70,6 +69,41 @@ class RedditScraper(BaseScraper):
                 seen.add(job.url)
                 all_jobs.append(job)
         return all_jobs
+
+    async def _fetch_subreddit(self, subreddit: str) -> Optional[dict]:
+        """Reddit يتطلب UA مميّز. نجرب old.reddit.com كـ fallback."""
+        await self._polite_delay()
+        headers = {
+            "User-Agent": REDDIT_UA,
+            "Accept": "application/json",
+        }
+        endpoints = [
+            f"https://old.reddit.com/r/{subreddit}/new.json",
+            f"https://www.reddit.com/r/{subreddit}/new.json",
+        ]
+        for url in endpoints:
+            try:
+                async with httpx.AsyncClient(
+                    timeout=20, follow_redirects=True
+                ) as client:
+                    resp = await client.get(
+                        url, params={"limit": "100"}, headers=headers
+                    )
+                    if resp.status_code == 200:
+                        return resp.json()
+                    if resp.status_code in (403, 429):
+                        logger.warning(
+                            "[reddit] HTTP %s on %s — trying next endpoint",
+                            resp.status_code, subreddit,
+                        )
+                        continue
+                    logger.warning(
+                        "[reddit] HTTP %s on %s",
+                        resp.status_code, subreddit,
+                    )
+            except (httpx.HTTPError, ValueError) as exc:
+                logger.warning("[reddit] fetch failed %s: %s", subreddit, exc)
+        return None
 
     def _parse_post(
         self, post: dict, subreddit: str, require_hiring: bool
