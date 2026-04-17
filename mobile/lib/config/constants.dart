@@ -37,6 +37,8 @@ class AppConstants {
     'hn_jobs',
     'nodesk',
     'freelancer',
+    'guru',
+    'jobspresso',
     'mostaql',
     'khamsat',
   ];
@@ -55,6 +57,8 @@ class AppConstants {
     'hn_jobs': 'HN Jobs',
     'nodesk': 'NoDesk',
     'freelancer': 'Freelancer',
+    'guru': 'Guru',
+    'jobspresso': 'Jobspresso',
     'mostaql': 'مستقل',
     'khamsat': 'خمسات',
   };
@@ -72,6 +76,8 @@ class AppConstants {
     'hn_jobs': Color(0xFFFF6600),
     'nodesk': Color(0xFF6366F1),
     'freelancer': Color(0xFF29B2FE),
+    'guru': Color(0xFFEF4444),
+    'jobspresso': Color(0xFFEA580C),
     'mostaql': Color(0xFF4E4BBB),
     'khamsat': Color(0xFF2EAF5C),
   };

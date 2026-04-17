@@ -1,9 +1,9 @@
 name: FreelanceRadar Scraper
 
 on:
-  # كل 30 دقيقة (UTC). ملاحظة: GitHub قد يؤخر التشغيل قليلاً.
+  # كل 10 دقائق (UTC). ملاحظة: GitHub قد يؤخر التشغيل قليلاً.
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/10 * * * *"
   # تشغيل يدوي من تبويب Actions
   workflow_dispatch:
 

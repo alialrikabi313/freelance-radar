@@ -34,7 +34,7 @@ class MostaqlScraper(BaseScraper):
         jobs: List[JobCreate] = []
         seen: set[str] = set()
 
-        for page in range(1, 4):  # أول 3 صفحات
+        for page in range(1, 11):  # أول 10 صفحات (~250 فرصة)
             url = f"{LISTING_URL}&page={page}"
             resp = await self._get(url)
             if resp is None:

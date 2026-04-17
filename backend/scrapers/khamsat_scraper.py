@@ -33,7 +33,7 @@ class KhamsatScraper(BaseScraper):
         jobs: List[JobCreate] = []
         seen: set[str] = set()
 
-        for page in range(1, 4):
+        for page in range(1, 11):  # أول 10 صفحات
             url = f"{REQUESTS_URL}&page={page}"
             resp = await self._get(url)
             if resp is None:

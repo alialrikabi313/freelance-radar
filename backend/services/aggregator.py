@@ -15,8 +15,10 @@ from scrapers import (
     ArbeitnowScraper,
     FindworkScraper,
     FreelancerScraper,
+    GuruScraper,
     HnJobsScraper,
     JobicyScraper,
+    JobspressoScraper,
     KhamsatScraper,
     MostaqlScraper,
     NoDeskScraper,
@@ -48,8 +50,11 @@ def _all_scrapers():
         # International — RSS
         WeWorkRemotelyScraper(),
         NoDeskScraper(),
-        # Freelance marketplaces
+        # Freelance marketplaces (bid-based)
         FreelancerScraper(),
+        GuruScraper(),
+        # Curated remote
+        JobspressoScraper(),
         # Arabic platforms — web scraping
         MostaqlScraper(),
         KhamsatScraper(),

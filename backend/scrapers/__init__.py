@@ -2,8 +2,10 @@ from .base_scraper import BaseScraper
 from .arbeitnow_scraper import ArbeitnowScraper
 from .findwork_scraper import FindworkScraper
 from .freelancer_scraper import FreelancerScraper
+from .guru_scraper import GuruScraper
 from .hn_jobs_scraper import HnJobsScraper
 from .jobicy_scraper import JobicyScraper
+from .jobspresso_scraper import JobspressoScraper
 from .khamsat_scraper import KhamsatScraper
 from .mostaql_scraper import MostaqlScraper
 from .nodesk_scraper import NoDeskScraper
@@ -19,8 +21,10 @@ __all__ = [
     "ArbeitnowScraper",
     "FindworkScraper",
     "FreelancerScraper",
+    "GuruScraper",
     "HnJobsScraper",
     "JobicyScraper",
+    "JobspressoScraper",
     "KhamsatScraper",
     "MostaqlScraper",
     "NoDeskScraper",
