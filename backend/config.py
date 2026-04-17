@@ -28,6 +28,12 @@ class Settings:
     freelancer_api_key: str = field(
         default_factory=lambda: os.getenv("FREELANCER_API_KEY", "")
     )
+    adzuna_app_id: str = field(
+        default_factory=lambda: os.getenv("ADZUNA_APP_ID", "")
+    )
+    adzuna_app_key: str = field(
+        default_factory=lambda: os.getenv("ADZUNA_APP_KEY", "")
+    )
 
     # Filtering
     min_relevance_score: float = field(

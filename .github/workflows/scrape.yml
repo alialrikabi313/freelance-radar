@@ -40,6 +40,8 @@ jobs:
         env:
           FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FREELANCER_API_KEY: ${{ secrets.FREELANCER_API_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
           MIN_RELEVANCE_SCORE: "0.3"
           MAX_JOB_AGE_DAYS: "30"
           REQUEST_DELAY_MIN: "2"
