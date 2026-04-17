@@ -6,9 +6,8 @@ import '../models/job_model.dart';
 import '../services/cache_service.dart';
 import '../services/firestore_service.dart';
 
-/// يدير قائمة الوظائف — يستخدم Firestore streams للتحديث اللحظي.
-///
-/// عند أي تغيير في الفلاتر، تُعاد تهيئة الـ subscription بالمعاملات الجديدة.
+/// يدير قائمة الوظائف — يستخدم Firestore streams للتحديث اللحظي
+/// مع تطبيق الفلاتر محلياً (سريع وموثوق).
 class JobsProvider extends ChangeNotifier {
   JobsProvider(this._firestore, this._cache);
 
@@ -21,10 +20,11 @@ class JobsProvider extends ChangeNotifier {
   DateTime? _lastUpdated;
   Set<String> _readIds = <String>{};
   Set<String> _favoriteIds = <String>{};
-  StreamSubscription<List<Job>>? _sub;
-  int _currentLimit = 20;
+  StreamSubscription<JobsPage>? _sub;
+  int _displayLimit = 20;
+  bool _hasMore = false;
 
-  // آخر معاملات مُستخدمة (لاستعادة الاشتراك)
+  // آخر معاملات
   String _lastPlatform = 'all';
   String _lastCategory = 'all';
   String _lastSortBy = 'published_at';
@@ -38,7 +38,7 @@ class JobsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   DateTime? get lastUpdated => _lastUpdated;
-  bool get canLoadMore => _jobs.length >= _currentLimit;
+  bool get canLoadMore => _hasMore;
 
   /// تشغيل الـ stream بالمعاملات المعطاة.
   void subscribe({
@@ -63,7 +63,7 @@ class JobsProvider extends ChangeNotifier {
     _lastIncludeUnknown = includeUnknownBudget;
     _lastSearch = search;
 
-    // عرض الكاش كـ fallback سريع.
+    // عرض الكاش كـ fallback سريع
     if (_jobs.isEmpty) {
       final cached = _cache.getCachedJobs();
       if (cached.isNotEmpty) {
@@ -78,7 +78,7 @@ class JobsProvider extends ChangeNotifier {
 
     _sub?.cancel();
     _sub = _firestore
-        .watchJobs(
+        .watchJobsFiltered(
       platform: platform,
       category: category,
       minBudget: minBudget > 0 ? minBudget : null,
@@ -87,11 +87,12 @@ class JobsProvider extends ChangeNotifier {
       sortOrder: sortOrder,
       language: language,
       search: search,
-      limit: _currentLimit,
+      displayLimit: _displayLimit,
     )
         .listen(
-      (newJobs) {
-        _jobs = _decorate(newJobs);
+      (page) {
+        _jobs = _decorate(page.jobs);
+        _hasMore = page.hasMore;
         _isLoading = false;
         _error = null;
         notifyListeners();
@@ -108,9 +109,8 @@ class JobsProvider extends ChangeNotifier {
     );
   }
 
-  /// تحميل المزيد — نزيد الحد الأقصى ونعيد الاشتراك.
   Future<void> loadMore() async {
-    _currentLimit += 20;
+    _displayLimit += 20;
     subscribe(
       platform: _lastPlatform,
       category: _lastCategory,
@@ -123,9 +123,8 @@ class JobsProvider extends ChangeNotifier {
     );
   }
 
-  /// سحب للتحديث — مع streams يكفي إعادة الاشتراك.
   Future<void> refresh() async {
-    _currentLimit = 20;
+    _displayLimit = 20;
     subscribe(
       platform: _lastPlatform,
       category: _lastCategory,
@@ -143,7 +142,6 @@ class JobsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// علّم وظيفة مقروءة محلياً.
   Future<void> markRead(String jobId) async {
     final idx = _jobs.indexWhere((j) => j.id == jobId);
     if (idx < 0 || _jobs[idx].isRead) return;
@@ -153,7 +151,6 @@ class JobsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// تبديل حالة المفضلة.
   Future<void> toggleFavorite(Job job) async {
     await _cache.toggleFavorite(job.id);
     if (_favoriteIds.contains(job.id)) {
@@ -165,7 +162,8 @@ class JobsProvider extends ChangeNotifier {
     }
     final idx = _jobs.indexWhere((j) => j.id == job.id);
     if (idx >= 0) {
-      _jobs[idx] = _jobs[idx].copyWith(isFavorite: _favoriteIds.contains(job.id));
+      _jobs[idx] =
+          _jobs[idx].copyWith(isFavorite: _favoriteIds.contains(job.id));
     }
     notifyListeners();
   }

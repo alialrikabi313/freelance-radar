@@ -12,7 +12,6 @@ from config import settings
 from firebase_client import get_firestore
 from models.job import JobCreate
 from scrapers import (
-    AdzunaScraper,
     ArbeitnowScraper,
     FindworkScraper,
     FreelancerScraper,
@@ -37,7 +36,6 @@ logger = logging.getLogger(__name__)
 def _all_scrapers():
     return [
         # International — REST APIs
-        AdzunaScraper(),  # أكبر مصدر — 100K+ وظيفة تقنية عالمية
         ReedScraper(),  # السوق البريطاني — مئات الآلاف
         TheMuseScraper(),  # شركات معروفة (Apple, Google, BofA, ...)
         FindworkScraper(),  # وظائف تقنية remote (4K+)

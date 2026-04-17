@@ -6,21 +6,21 @@ import '../models/job_model.dart';
 class JobsPage {
   const JobsPage({
     required this.jobs,
-    required this.lastDocument,
     required this.hasMore,
   });
 
   final List<Job> jobs;
-  final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
   final bool hasMore;
 }
 
 /// خدمة قراءة الوظائف من Firestore.
 ///
-/// تدعم:
-///   - جلب صفحة واحدة (fetchJobs)
-///   - بث حي للوظائف (watchJobs) — للتحديث اللحظي
-///   - بث حي للوظائف الجديدة فقط (watchNewJobs) — للإشعارات
+/// الاستراتيجية: نجلب أحدث 500 وظيفة مرة واحدة عبر stream،
+/// ثم نطبّق كل الفلاتر محلياً. هذا:
+///   - يتجنب الحاجة لـ composite indexes معقدة
+///   - يعطي تحديث لحظي (Firestore streams)
+///   - أسرع بكثير للمستخدم (فلترة فورية عند تغيير أي chip)
+///   - ضمن حدود free tier بسهولة
 class FirestoreService {
   FirestoreService({String collection = 'jobs', FirebaseFirestore? firestore})
       : _collection = collection,
@@ -29,12 +29,15 @@ class FirestoreService {
   final FirebaseFirestore _db;
   final String _collection;
 
+  /// الحد الأقصى للجلب — يكفي لأكثر من 30 يوم من البيانات.
+  static const int _maxJobsPerFetch = 500;
+
   static final RegExp _arabicChars = RegExp(r'[\u0600-\u06FF]');
 
   CollectionReference<Map<String, dynamic>> get _coll =>
       _db.collection(_collection);
 
-  /// آخر وقت scraping (لعرضه في الواجهة).
+  /// آخر وقت scraping.
   Future<DateTime?> fetchLastUpdated() async {
     try {
       final snap = await _coll
@@ -50,209 +53,141 @@ class FirestoreService {
     }
   }
 
-  /// بناء الاستعلام حسب الفلاتر.
-  Query<Map<String, dynamic>> _buildQuery({
+  /// يطبّق الفلاتر محلياً على قائمة وظائف.
+  List<Job> _applyFilters(
+    List<Job> source, {
     required String platform,
     required String category,
     required double? minBudget,
+    required bool includeUnknownBudget,
+    required String language,
     required String sortBy,
     required String sortOrder,
-    required int limit,
-    DocumentSnapshot<Map<String, dynamic>>? startAfter,
-    bool includeUnknownBudget = true,
-  }) {
-    Query<Map<String, dynamic>> q = _coll;
-
-    if (platform != 'all') {
-      q = q.where('platform', isEqualTo: platform);
-    }
-    if (category != 'all') {
-      q = q.where('category', isEqualTo: category);
-    }
-
-    final hasBudgetFilter = minBudget != null && minBudget > 0;
-    if (hasBudgetFilter && !includeUnknownBudget) {
-      q = q.where('budget_max', isGreaterThanOrEqualTo: minBudget);
-      // عند استخدام range filter، أول orderBy يجب أن يكون على نفس الحقل
-      if (sortBy != 'budget_max') {
-        q = q.orderBy('budget_max', descending: true);
-      }
-    }
-
-    q = q.orderBy(sortBy, descending: sortOrder == 'desc');
-    q = q.limit(limit);
-
-    if (startAfter != null) {
-      q = q.startAfterDocument(startAfter);
-    }
-    return q;
-  }
-
-  List<Job> _applyLocalFilters(
-    List<Job> jobs, {
-    required String language,
     String? search,
-    double? minBudget,
-    bool includeUnknownBudget = true,
   }) {
-    final filtered = List<Job>.from(jobs);
+    var result = List<Job>.from(source);
 
-    // فلتر البحث
-    if (search != null && search.trim().isNotEmpty) {
-      final searchLower = search.trim().toLowerCase();
-      filtered.removeWhere(
-        (j) =>
-            !j.title.toLowerCase().contains(searchLower) &&
-            !j.description.toLowerCase().contains(searchLower),
-      );
+    // 1. فلتر المنصة
+    if (platform != 'all') {
+      result = result.where((j) => j.platform == platform).toList();
     }
 
-    // فلتر اللغة
+    // 2. فلتر الفئة
+    if (category != 'all') {
+      result = result.where((j) => j.category == category).toList();
+    }
+
+    // 3. فلتر الميزانية
+    if (minBudget != null && minBudget > 0) {
+      result = result.where((j) {
+        if (j.budgetMax == null) return includeUnknownBudget;
+        return j.budgetMax! >= minBudget;
+      }).toList();
+    }
+
+    // 4. فلتر اللغة
     if (language != 'all') {
       final wantArabic = language == 'ar';
-      filtered.removeWhere(
-        (j) => _arabicChars.hasMatch(j.title) != wantArabic,
-      );
+      result = result
+          .where((j) => _arabicChars.hasMatch(j.title) == wantArabic)
+          .toList();
     }
 
-    // فلتر الميزانية مع خيار "شمل بدون ميزانية"
-    if (minBudget != null && minBudget > 0 && includeUnknownBudget) {
-      filtered.removeWhere((j) {
-        // لو الميزانية غير معلنة، نُبقيها
-        if (j.budgetMax == null) return false;
-        return j.budgetMax! < minBudget;
-      });
+    // 5. فلتر البحث
+    if (search != null && search.trim().isNotEmpty) {
+      final q = search.trim().toLowerCase();
+      result = result
+          .where(
+            (j) =>
+                j.title.toLowerCase().contains(q) ||
+                j.description.toLowerCase().contains(q),
+          )
+          .toList();
     }
 
-    return filtered;
+    // 6. الترتيب
+    final desc = sortOrder == 'desc';
+    result.sort((a, b) {
+      int cmp;
+      switch (sortBy) {
+        case 'relevance_score':
+          cmp = a.relevanceScore.compareTo(b.relevanceScore);
+          break;
+        case 'budget_max':
+          final av = a.budgetMax ?? -1;
+          final bv = b.budgetMax ?? -1;
+          cmp = av.compareTo(bv);
+          break;
+        case 'published_at':
+        default:
+          cmp = a.publishedAt.compareTo(b.publishedAt);
+      }
+      return desc ? -cmp : cmp;
+    });
+
+    return result;
   }
 
-  /// جلب صفحة وظائف (one-shot).
-  Future<JobsPage> fetchJobs({
+  /// Stream حي لكل الوظائف (محدّد بـ 500) — يُحدّث لحظياً.
+  /// يُرجع [JobsPage] بعد تطبيق الفلاتر محلياً.
+  Stream<JobsPage> watchJobsFiltered({
     String platform = 'all',
     String category = 'all',
     double? minBudget,
     bool includeUnknownBudget = true,
     String sortBy = 'published_at',
     String sortOrder = 'desc',
-    int limit = 20,
-    DocumentSnapshot<Map<String, dynamic>>? startAfter,
+    int displayLimit = 20,
     String language = 'all',
     String? search,
-  }) async {
-    try {
-      final fetchLimit = (language != 'all' || (search?.isNotEmpty ?? false))
-          ? limit * 3
-          : limit;
+  }) {
+    // استعلام بسيط: فقط orderBy + limit (لا يحتاج composite index)
+    final q = _coll
+        .orderBy('published_at', descending: true)
+        .limit(_maxJobsPerFetch);
 
-      final q = _buildQuery(
+    return q.snapshots().map((snap) {
+      final all = snap.docs.map(Job.fromFirestore).toList();
+      final filtered = _applyFilters(
+        all,
         platform: platform,
         category: category,
         minBudget: minBudget,
         includeUnknownBudget: includeUnknownBudget,
+        language: language,
         sortBy: sortBy,
         sortOrder: sortOrder,
-        limit: fetchLimit,
-        startAfter: startAfter,
-      );
-
-      final snap = await q.get();
-      var jobs = snap.docs.map(Job.fromFirestore).toList(growable: true);
-
-      jobs = _applyLocalFilters(
-        jobs,
-        language: language,
         search: search,
-        minBudget: minBudget,
-        includeUnknownBudget: includeUnknownBudget,
       );
-
-      final hasMore = snap.docs.length >= fetchLimit;
-      if (jobs.length > limit) {
-        jobs = jobs.sublist(0, limit);
-      }
-      final lastDoc = snap.docs.isEmpty ? null : snap.docs.last;
-      return JobsPage(jobs: jobs, lastDocument: lastDoc, hasMore: hasMore);
-    } on FirebaseException catch (e) {
-      throw FirestoreServiceException(_messageFor(e));
-    } catch (_) {
-      throw FirestoreServiceException('حدث خطأ أثناء جلب البيانات');
-    }
-  }
-
-  /// Stream حي لصفحة الوظائف الأولى — يحدّث فوراً عند تغير أي وظيفة.
-  Stream<List<Job>> watchJobs({
-    String platform = 'all',
-    String category = 'all',
-    double? minBudget,
-    bool includeUnknownBudget = true,
-    String sortBy = 'published_at',
-    String sortOrder = 'desc',
-    int limit = 20,
-    String language = 'all',
-    String? search,
-  }) {
-    final q = _buildQuery(
-      platform: platform,
-      category: category,
-      minBudget: minBudget,
-      includeUnknownBudget: includeUnknownBudget,
-      sortBy: sortBy,
-      sortOrder: sortOrder,
-      // نطلب أكثر قليلاً عند وجود فلاتر محلية
-      limit: (language != 'all' || (search?.isNotEmpty ?? false))
-          ? limit * 3
-          : limit,
-    );
-    return q.snapshots().map((snap) {
-      var jobs = snap.docs.map(Job.fromFirestore).toList(growable: true);
-      jobs = _applyLocalFilters(
-        jobs,
-        language: language,
-        search: search,
-        minBudget: minBudget,
-        includeUnknownBudget: includeUnknownBudget,
+      final visible = filtered.length > displayLimit
+          ? filtered.sublist(0, displayLimit)
+          : filtered;
+      return JobsPage(
+        jobs: visible,
+        hasMore: filtered.length > displayLimit,
       );
-      if (jobs.length > limit) jobs = jobs.sublist(0, limit);
-      return jobs;
     });
   }
 
-  /// Stream للوظائف الجديدة فقط — يُستخدم في نظام الإشعارات.
-  ///
-  /// يُصدر فقط الوظائف المُضافة بعد [after]، ومع `budget_max >= threshold`.
+  /// Stream للوظائف الجديدة فقط (للإشعارات).
   Stream<List<Job>> watchNewHighBudgetJobs({
     required DateTime after,
     required double minBudget,
     bool includeUnknownBudget = false,
   }) {
-    Query<Map<String, dynamic>> q = _coll
+    final q = _coll
         .where('scraped_at', isGreaterThan: Timestamp.fromDate(after))
         .orderBy('scraped_at', descending: true)
         .limit(50);
 
     return q.snapshots().map((snap) {
       var jobs = snap.docs.map(Job.fromFirestore).toList();
-      // فلتر الميزانية محلياً
       jobs = jobs.where((j) {
         if (j.budgetMax == null) return includeUnknownBudget;
         return j.budgetMax! >= minBudget;
       }).toList();
       return jobs;
     });
-  }
-
-  String _messageFor(FirebaseException e) {
-    switch (e.code) {
-      case 'permission-denied':
-        return 'لا توجد صلاحية للوصول. تحقق من قواعد Firestore';
-      case 'unavailable':
-        return 'تعذّر الوصول لـ Firestore، تحقق من الاتصال';
-      case 'failed-precondition':
-        return 'يحتاج الاستعلام إلى Firestore index. افتح رابط الخطأ لإنشائه';
-      default:
-        return e.message ?? 'حدث خطأ غير متوقع';
-    }
   }
 }
 

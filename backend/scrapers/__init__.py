@@ -1,5 +1,4 @@
 from .base_scraper import BaseScraper
-from .adzuna_scraper import AdzunaScraper
 from .arbeitnow_scraper import ArbeitnowScraper
 from .findwork_scraper import FindworkScraper
 from .freelancer_scraper import FreelancerScraper
@@ -17,7 +16,6 @@ from .wwr_scraper import WeWorkRemotelyScraper
 
 __all__ = [
     "BaseScraper",
-    "AdzunaScraper",
     "ArbeitnowScraper",
     "FindworkScraper",
     "FreelancerScraper",
