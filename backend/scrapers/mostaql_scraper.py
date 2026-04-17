@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 BASE_URL = "https://mostaql.com"
-LISTING_URL = (
-    "https://mostaql.com/projects?category=development&sort=latest"
-)
+LISTING_URL = "https://mostaql.com/projects?category=development&sort=latest"
 
 ARABIC_SKILLS = [
     "Flutter", "فلاتر", "React Native", "Dart", "Android", "اندرويد",
@@ -43,46 +41,35 @@ class MostaqlScraper(BaseScraper):
                 continue
 
             soup = BeautifulSoup(resp.text, "lxml")
-            cards = soup.select("tr.project-row") or soup.select(
-                "table.projects-list tbody tr"
-            )
+            rows = soup.select("tr.project-row")
 
-            for card in cards:
-                title_tag = card.select_one("h2.project-title__title a") or card.select_one(
-                    "a.project-title"
-                )
-                if not title_tag:
+            for row in rows:
+                title_link = row.select_one("h2 a")
+                if not title_link:
                     continue
-                title = title_tag.get_text(strip=True)
-                href = title_tag.get("href") or ""
+
+                title = title_link.get_text(strip=True)
+                href = title_link.get("href") or ""
                 project_url = urljoin(BASE_URL, href).split("?")[0]
                 if not project_url or project_url in seen:
                     continue
                 seen.add(project_url)
 
-                desc_tag = card.select_one("p.project__brief") or card.select_one(
-                    ".project-brief"
-                )
-                description = desc_tag.get_text(" ", strip=True) if desc_tag else ""
+                # الوصف
+                brief = row.select_one(".project__brief")
+                description = brief.get_text(" ", strip=True) if brief else ""
 
+                # فلتر مبدئي — مشاريع الموبايل فقط
                 if not self.is_mobile_related(title, description):
                     continue
 
-                budget_text = _text_of(card, "li.list-meta__budget") or _text_of(
-                    card, ".project__meta-budget"
-                )
-                budget_min, budget_max, currency = _parse_mostaql_budget(budget_text)
+                # الوقت: time[datetime="2026-04-16 22:02:58"]
+                published_at = _parse_time_element(row.select_one("time"))
 
-                offers_text = _text_of(card, "li.list-meta__offers") or _text_of(
-                    card, ".project__meta-offers"
-                )
-                proposals_count = _parse_int(offers_text)
+                # عدد العروض: من li الأخير في .list-meta-items
+                proposals_count = _parse_proposals(row)
 
-                time_text = _text_of(card, "li.list-meta__time time") or _text_of(
-                    card, "time"
-                )
-                published_at = _parse_relative_arabic_time(time_text)
-
+                # المهارات
                 skills = self.extract_skills(
                     f"{title} {description}", ARABIC_SKILLS
                 )
@@ -93,76 +80,55 @@ class MostaqlScraper(BaseScraper):
                         description=description,
                         url=project_url,
                         published_at=published_at,
-                        budget_min=budget_min,
-                        budget_max=budget_max,
-                        currency=currency,
+                        # الميزانية لا تظهر في صفحة القائمة — نتركها فارغة
+                        budget_min=None,
+                        budget_max=None,
+                        currency="USD",
                         proposals_count=proposals_count,
                         skills=skills,
                     )
                 )
+
         return jobs
 
 
 # ────────────────────────── Helpers ──────────────────────────
 
 
-def _text_of(node, selector: str) -> str:
-    el = node.select_one(selector)
-    return el.get_text(" ", strip=True) if el else ""
-
-
-_BUDGET_RE = re.compile(r"([\d,.]+)\s*(?:-|–|إلى)\s*([\d,.]+)")
-_SINGLE_BUDGET_RE = re.compile(r"([\d,.]+)")
-
-
-def _parse_mostaql_budget(
-    text: str,
-) -> tuple[Optional[float], Optional[float], str]:
-    if not text:
-        return None, None, "USD"
-
-    currency = "USD"
-    if "$" in text:
-        currency = "USD"
-    elif "ر.س" in text or "SAR" in text:
-        currency = "SAR"
-    elif "د.إ" in text or "AED" in text:
-        currency = "AED"
-    elif "ج.م" in text or "EGP" in text:
-        currency = "EGP"
-
-    match = _BUDGET_RE.search(text)
-    if match:
-        try:
-            lo = float(match.group(1).replace(",", ""))
-            hi = float(match.group(2).replace(",", ""))
-            return lo, hi, currency
-        except ValueError:
-            pass
-
-    match = _SINGLE_BUDGET_RE.search(text)
-    if match:
-        try:
-            v = float(match.group(1).replace(",", ""))
-            return v, v, currency
-        except ValueError:
-            pass
-
-    return None, None, currency
-
-
-def _parse_int(text: str) -> Optional[int]:
-    if not text:
-        return None
-    match = re.search(r"\d+", text)
-    return int(match.group(0)) if match else None
+def _parse_time_element(time_el) -> datetime:
+    """قراءة datetime attribute من <time> tag."""
+    if time_el is None:
+        return datetime.utcnow()
+    dt_str = time_el.get("datetime") or ""
+    try:
+        # Format: "2026-04-16 22:02:58"
+        return datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
+    except (ValueError, TypeError):
+        pass
+    return datetime.utcnow()
 
 
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
 
+def _parse_proposals(row) -> Optional[int]:
+    """آخر li في .list-meta-items يحتوي 'X عرض'."""
+    meta = row.select_one(".list-meta-items")
+    if meta is None:
+        return None
+    for li in meta.select("li"):
+        text = li.get_text(" ", strip=True).translate(_ARABIC_DIGITS)
+        match = re.search(r"(\d+)\s*عرض", text)
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                pass
+    return None
+
+
 def _parse_relative_arabic_time(text: str) -> datetime:
-    """يحاول تحويل نص مثل "منذ ساعتين" إلى datetime."""
+    """Fallback: يحوّل نص مثل "منذ ساعتين" إلى datetime (يستخدمه Khamsat)."""
     if not text:
         return datetime.utcnow()
     t = text.translate(_ARABIC_DIGITS).lower()
@@ -173,13 +139,13 @@ def _parse_relative_arabic_time(text: str) -> datetime:
 
     if "دقيق" in t or "minute" in t:
         return now - timedelta(minutes=n)
-    if "ساعة" in t or "ساعت" in t or "hour" in t:
+    if "ساع" in t or "hour" in t:
         return now - timedelta(hours=n)
-    if "يوم" in t or "يومين" in t or "day" in t:
+    if "يوم" in t or "day" in t:
         return now - timedelta(days=n)
     if "أسبوع" in t or "اسبوع" in t or "week" in t:
         return now - timedelta(weeks=n)
-    if "شهر" in t or "شهرين" in t or "month" in t:
+    if "شهر" in t or "month" in t:
         return now - timedelta(days=30 * n)
 
     return now

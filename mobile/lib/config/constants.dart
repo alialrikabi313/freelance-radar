@@ -18,7 +18,7 @@ class AppConstants {
 
   // — Platforms —
   static const List<String> allPlatforms = <String>[
-    'upwork',
+    'remotive',
     'freelancer',
     'mostaql',
     'khamsat',
@@ -26,14 +26,14 @@ class AppConstants {
 
   static const Map<String, String> platformLabels = <String, String>{
     'all': 'الكل',
-    'upwork': 'Upwork',
+    'remotive': 'Remotive',
     'freelancer': 'Freelancer',
     'mostaql': 'مستقل',
     'khamsat': 'خمسات',
   };
 
   static const Map<String, Color> platformColors = <String, Color>{
-    'upwork': Color(0xFF14A800),
+    'remotive': Color(0xFFFF6B35),
     'freelancer': Color(0xFF29B2FE),
     'mostaql': Color(0xFF4E4BBB),
     'khamsat': Color(0xFF2EAF5C),

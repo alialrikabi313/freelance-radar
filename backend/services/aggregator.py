@@ -15,7 +15,7 @@ from scrapers import (
     FreelancerScraper,
     KhamsatScraper,
     MostaqlScraper,
-    UpworkScraper,
+    RemotiveScraper,
 )
 
 from .ai_filter import score_job
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 def _all_scrapers():
     return [
-        UpworkScraper(),
+        RemotiveScraper(),
         FreelancerScraper(),
         MostaqlScraper(),
         KhamsatScraper(),
