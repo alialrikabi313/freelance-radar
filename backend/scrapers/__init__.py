@@ -1,7 +1,6 @@
 from .base_scraper import BaseScraper
 from .arbeitnow_scraper import ArbeitnowScraper
 from .cryptojobs_scraper import CryptoJobsScraper
-from .dynamite_scraper import DynamiteScraper
 from .findwork_scraper import FindworkScraper
 from .freelancer_scraper import FreelancerScraper
 from .guru_scraper import GuruScraper
@@ -24,7 +23,6 @@ __all__ = [
     "BaseScraper",
     "ArbeitnowScraper",
     "CryptoJobsScraper",
-    "DynamiteScraper",
     "FindworkScraper",
     "FreelancerScraper",
     "GuruScraper",

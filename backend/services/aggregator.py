@@ -14,7 +14,6 @@ from models.job import JobCreate
 from scrapers import (
     ArbeitnowScraper,
     CryptoJobsScraper,
-    DynamiteScraper,
     FindworkScraper,
     FreelancerScraper,
     GuruScraper,
@@ -62,9 +61,8 @@ def _all_scrapers():
         # LinkedIn (rate-limit محافظ)
         LinkedInScraper(),
         # Reddit — r/forhire + r/jobbit + r/slavelabour + r/remotejs
+        # (قد يفشل من GitHub Actions — يحتاج OAuth app لبعض الأحيان)
         RedditScraper(),
-        # Remote specialized
-        DynamiteScraper(),
         # Crypto / Web3
         CryptoJobsScraper(),
         # Arabic platforms — web scraping
