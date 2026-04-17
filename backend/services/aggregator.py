@@ -14,6 +14,7 @@ from models.job import JobCreate
 from scrapers import (
     AdzunaScraper,
     ArbeitnowScraper,
+    FindworkScraper,
     FreelancerScraper,
     HnJobsScraper,
     JobicyScraper,
@@ -39,6 +40,7 @@ def _all_scrapers():
         AdzunaScraper(),  # أكبر مصدر — 100K+ وظيفة تقنية عالمية
         ReedScraper(),  # السوق البريطاني — مئات الآلاف
         TheMuseScraper(),  # شركات معروفة (Apple, Google, BofA, ...)
+        FindworkScraper(),  # وظائف تقنية remote (4K+)
         RemotiveScraper(),
         RemoteOkScraper(),
         ArbeitnowScraper(),
