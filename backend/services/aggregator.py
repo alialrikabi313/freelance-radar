@@ -20,6 +20,7 @@ from scrapers import (
     JobicyScraper,
     JobspressoScraper,
     KhamsatScraper,
+    LinkedInScraper,
     MostaqlScraper,
     NoDeskScraper,
     ReedScraper,
@@ -55,6 +56,8 @@ def _all_scrapers():
         GuruScraper(),
         # Curated remote
         JobspressoScraper(),
+        # LinkedIn (rate-limit محافظ)
+        LinkedInScraper(),
         # Arabic platforms — web scraping
         MostaqlScraper(),
         KhamsatScraper(),

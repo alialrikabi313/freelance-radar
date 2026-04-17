@@ -7,6 +7,7 @@ from .hn_jobs_scraper import HnJobsScraper
 from .jobicy_scraper import JobicyScraper
 from .jobspresso_scraper import JobspressoScraper
 from .khamsat_scraper import KhamsatScraper
+from .linkedin_scraper import LinkedInScraper
 from .mostaql_scraper import MostaqlScraper
 from .nodesk_scraper import NoDeskScraper
 from .reed_scraper import ReedScraper
@@ -26,6 +27,7 @@ __all__ = [
     "JobicyScraper",
     "JobspressoScraper",
     "KhamsatScraper",
+    "LinkedInScraper",
     "MostaqlScraper",
     "NoDeskScraper",
     "ReedScraper",
