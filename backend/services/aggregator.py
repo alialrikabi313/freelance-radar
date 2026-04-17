@@ -13,6 +13,8 @@ from firebase_client import get_firestore
 from models.job import JobCreate
 from scrapers import (
     ArbeitnowScraper,
+    CryptoJobsScraper,
+    DynamiteScraper,
     FindworkScraper,
     FreelancerScraper,
     GuruScraper,
@@ -23,6 +25,7 @@ from scrapers import (
     LinkedInScraper,
     MostaqlScraper,
     NoDeskScraper,
+    RedditScraper,
     ReedScraper,
     RemoteOkScraper,
     RemotiveScraper,
@@ -58,6 +61,12 @@ def _all_scrapers():
         JobspressoScraper(),
         # LinkedIn (rate-limit محافظ)
         LinkedInScraper(),
+        # Reddit — r/forhire + r/jobbit + r/slavelabour + r/remotejs
+        RedditScraper(),
+        # Remote specialized
+        DynamiteScraper(),
+        # Crypto / Web3
+        CryptoJobsScraper(),
         # Arabic platforms — web scraping
         MostaqlScraper(),
         KhamsatScraper(),

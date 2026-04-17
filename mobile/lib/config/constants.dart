@@ -40,6 +40,9 @@ class AppConstants {
     'freelancer',
     'guru',
     'jobspresso',
+    'reddit',
+    'dynamite',
+    'cryptojobs',
     'mostaql',
     'khamsat',
   ];
@@ -61,6 +64,9 @@ class AppConstants {
     'freelancer': 'Freelancer',
     'guru': 'Guru',
     'jobspresso': 'Jobspresso',
+    'reddit': 'Reddit',
+    'dynamite': 'Dynamite',
+    'cryptojobs': 'CryptoJobs',
     'mostaql': 'مستقل',
     'khamsat': 'خمسات',
   };
@@ -81,6 +87,9 @@ class AppConstants {
     'freelancer': Color(0xFF29B2FE),
     'guru': Color(0xFFEF4444),
     'jobspresso': Color(0xFFEA580C),
+    'reddit': Color(0xFFFF4500),
+    'dynamite': Color(0xFFFBBF24),
+    'cryptojobs': Color(0xFFF97316),
     'mostaql': Color(0xFF4E4BBB),
     'khamsat': Color(0xFF2EAF5C),
   };
