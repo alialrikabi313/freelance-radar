@@ -1,18 +1,17 @@
-"""Reddit Scraper — subreddits مخصصة للفريلانس والتوظيف.
+"""Reddit Scraper — عبر RSS feeds (لا يحتاج OAuth أبداً).
 
-Reddit يوفر JSON API عامة بدون auth:
-  https://www.reddit.com/r/{subreddit}/new.json?limit=100
-
-نفلتر posts بعلامة [HIRING] للتركيز على الفرص وليس طلبات التوظيف.
+Reddit JSON API يحظر IPs الـ cloud، لكن RSS يعمل بدون auth.
+نبحث عن [HIRING] posts ونستثني [FOR HIRE] (فريلانسرز يعرضون خدماتهم).
 """
 from __future__ import annotations
 
 import logging
 import re
 from datetime import datetime
+from time import mktime
 from typing import List, Optional
 
-import httpx
+import feedparser
 
 from models.job import JobCreate
 
@@ -20,31 +19,27 @@ from .base_scraper import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-# Reddit يتطلب User-Agent مميّز ومحدد الهوية.
-# Reddit يحظر generic UAs (خصوصاً من cloud IPs).
-REDDIT_UA = "FreelanceRadar/1.0 (Personal job aggregator; +github.com/alialrikabi313)"
 
+# subreddits — require_hiring_tag إذا كان الـ subreddit مختلط
 SUBREDDITS = [
-    # subreddit, require_hiring_tag
-    ("forhire", True),        # فقط [HIRING] (شركات توظف)
+    ("forhire", True),
     ("jobbit", True),
-    ("slavelabour", True),    # gigs صغيرة
-    ("remotejs", False),      # remote JS jobs
+    ("slavelabour", True),
+    ("remotejs", False),   # remote JS jobs — كلها فرص
+    ("designjobs", True),
+    ("freelance_forhire", False),
 ]
 
 
-# نبحث عن [HIRING] أو (HIRING) فقط — نستثني [FOR HIRE] (فريلانسر يعرض نفسه)
 _HIRING_RE = re.compile(
     r"\[\s*hiring\s*\]|\(\s*hiring\s*\)", re.IGNORECASE
 )
-# كل post بعلامة [FOR HIRE] نتجاهله (هذا فريلانسر يعرض خدماته)
 _FOR_HIRE_RE = re.compile(
     r"\[\s*for\s*hire\s*\]|\(\s*for\s*hire\s*\)", re.IGNORECASE
 )
-
-# استخراج الميزانية من نص العنوان أو post body
 _BUDGET_RE = re.compile(
-    r"\$\s?([\d,]+)(?:\s*/\s*(?:hr|hour|day))?(?:\s*(?:-|to|–)\s*\$?\s*([\d,]+))?",
+    r"\$\s?([\d,]+)(?:\s*(?:/\s*(?:hr|hour|day))?)?"
+    r"(?:\s*(?:-|to|–)\s*\$?\s*([\d,]+))?",
     re.IGNORECASE,
 )
 
@@ -57,77 +52,43 @@ class RedditScraper(BaseScraper):
         seen: set[str] = set()
 
         for subreddit, require_hiring in SUBREDDITS:
-            data = await self._fetch_subreddit(subreddit)
-            if data is None:
+            url = f"https://www.reddit.com/r/{subreddit}/new/.rss"
+            resp = await self._get(url)
+            if resp is None:
                 continue
 
-            posts = data.get("data", {}).get("children", []) or []
-            for p in posts:
-                job = self._parse_post(p.get("data", {}), subreddit, require_hiring)
+            parsed = feedparser.parse(resp.text)
+            for entry in parsed.entries:
+                job = self._parse_entry(entry, subreddit, require_hiring)
                 if job is None or job.url in seen:
                     continue
                 seen.add(job.url)
                 all_jobs.append(job)
         return all_jobs
 
-    async def _fetch_subreddit(self, subreddit: str) -> Optional[dict]:
-        """Reddit يتطلب UA مميّز. نجرب old.reddit.com كـ fallback."""
-        await self._polite_delay()
-        headers = {
-            "User-Agent": REDDIT_UA,
-            "Accept": "application/json",
-        }
-        endpoints = [
-            f"https://old.reddit.com/r/{subreddit}/new.json",
-            f"https://www.reddit.com/r/{subreddit}/new.json",
-        ]
-        for url in endpoints:
-            try:
-                async with httpx.AsyncClient(
-                    timeout=20, follow_redirects=True
-                ) as client:
-                    resp = await client.get(
-                        url, params={"limit": "100"}, headers=headers
-                    )
-                    if resp.status_code == 200:
-                        return resp.json()
-                    if resp.status_code in (403, 429):
-                        logger.warning(
-                            "[reddit] HTTP %s on %s — trying next endpoint",
-                            resp.status_code, subreddit,
-                        )
-                        continue
-                    logger.warning(
-                        "[reddit] HTTP %s on %s",
-                        resp.status_code, subreddit,
-                    )
-            except (httpx.HTTPError, ValueError) as exc:
-                logger.warning("[reddit] fetch failed %s: %s", subreddit, exc)
-        return None
-
-    def _parse_post(
-        self, post: dict, subreddit: str, require_hiring: bool
+    def _parse_entry(
+        self, entry, subreddit: str, require_hiring: bool
     ) -> Optional[JobCreate]:
-        title = post.get("title") or ""
-        body = post.get("selftext") or ""
-        permalink = post.get("permalink") or ""
-
-        if not title or not permalink:
+        title = getattr(entry, "title", "") or ""
+        link = getattr(entry, "link", "") or ""
+        if not title or not link:
             return None
 
-        # نستثني [FOR HIRE] — دي فريلانسرز يعرضون خدماتهم
+        # نستثني [FOR HIRE] (فريلانسرز يعرضون خدماتهم)
         if _FOR_HIRE_RE.search(title):
             return None
 
-        # نحتاج علامة HIRING للـ subreddits المختلطة (forhire, jobbit...)
+        # نتطلب علامة [HIRING] للـ subreddits المختلطة
         if require_hiring and not _HIRING_RE.search(title):
             return None
 
-        # نطمئن أن هذا بوست برمجي
-        if not self.is_programming_related(title, body):
+        summary = getattr(entry, "summary", "") or ""
+
+        # تأكد أنه برمجي
+        if not self.is_programming_related(title, summary):
             return None
 
-        # تنظيف العنوان من علامة [HIRING]
+        # تنظيف العنوان من [HIRING]
         clean_title = re.sub(
             r"\[\s*hiring\s*\]|\(\s*hiring\s*\)",
             "",
@@ -135,32 +96,33 @@ class RedditScraper(BaseScraper):
             flags=re.IGNORECASE,
         ).strip(" -:")
 
-        url = f"https://www.reddit.com{permalink}"
-        author = post.get("author")
-        ups = post.get("ups") or 0
-
-        # وقت النشر epoch
-        created = post.get("created_utc")
+        # وقت النشر
+        struct = getattr(entry, "published_parsed", None) or getattr(
+            entry, "updated_parsed", None
+        )
         published_at = (
-            datetime.fromtimestamp(float(created))
-            if created
+            datetime.fromtimestamp(mktime(struct))
+            if struct
             else datetime.utcnow()
         )
 
-        # استخراج ميزانية من العنوان أو body
-        budget_min, budget_max = _parse_budget(f"{title} {body[:400]}")
+        # الميزانية من العنوان أو summary
+        budget_min, budget_max = _parse_budget(f"{title} {summary[:400]}")
+
+        author = getattr(entry, "author", "") or ""
+        # Reddit يعطي author بصيغة "/u/username"
+        client_name = author.replace("/u/", "").strip() or None
 
         return self.normalize_job(
             title=clean_title[:200],
-            description=body,
-            url=url,
+            description=summary,
+            url=link,
             published_at=published_at,
             budget_min=budget_min,
             budget_max=budget_max,
             currency="USD",
-            client_name=author,
+            client_name=client_name,
             country=f"r/{subreddit}",
-            proposals_count=ups if ups else None,
         )
 
 
