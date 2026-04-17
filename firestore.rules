@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// قواعد الأمان لـ Firestore.
+//
+// 🔒 الكتابة: ممنوعة تماماً من العملاء. الكتابة الوحيدة تتم
+// عبر service-account من GitHub Actions (Admin SDK يتجاوز هذه القواعد).
+//
+// 👁 القراءة: مفتوحة للجميع لأن البيانات عامة من الأساس.
+// إذا أردت تقييدها، أضف Firebase Auth وعدّل allow read.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /jobs/{jobId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

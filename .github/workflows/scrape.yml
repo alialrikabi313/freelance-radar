@@ -1,0 +1,47 @@
+name: FreelanceRadar Scraper
+
+on:
+  # كل 30 دقيقة (UTC). ملاحظة: GitHub قد يؤخر التشغيل قليلاً.
+  schedule:
+    - cron: "*/30 * * * *"
+  # تشغيل يدوي من تبويب Actions
+  workflow_dispatch:
+
+# نمنع التشغيل المتوازي لجولات السحب
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scrape round
+        env:
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FREELANCER_API_KEY: ${{ secrets.FREELANCER_API_KEY }}
+          MIN_RELEVANCE_SCORE: "0.3"
+          MAX_JOB_AGE_DAYS: "30"
+          REQUEST_DELAY_MIN: "2"
+          REQUEST_DELAY_MAX: "5"
+        run: python run.py
