@@ -12,10 +12,17 @@ from config import settings
 from firebase_client import get_firestore
 from models.job import JobCreate
 from scrapers import (
+    ArbeitnowScraper,
     FreelancerScraper,
+    HnJobsScraper,
+    JobicyScraper,
     KhamsatScraper,
     MostaqlScraper,
+    NoDeskScraper,
+    RemoteOkScraper,
     RemotiveScraper,
+    WeWorkRemotelyScraper,
+    WorkingNomadsScraper,
 )
 
 from .ai_filter import categorize_job, score_job
@@ -25,8 +32,19 @@ logger = logging.getLogger(__name__)
 
 def _all_scrapers():
     return [
+        # International — REST APIs
         RemotiveScraper(),
+        RemoteOkScraper(),
+        ArbeitnowScraper(),
+        WorkingNomadsScraper(),
+        JobicyScraper(),
+        HnJobsScraper(),
+        # International — RSS
+        WeWorkRemotelyScraper(),
+        NoDeskScraper(),
+        # Freelance marketplaces
         FreelancerScraper(),
+        # Arabic platforms — web scraping
         MostaqlScraper(),
         KhamsatScraper(),
     ]

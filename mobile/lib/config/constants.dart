@@ -26,6 +26,13 @@ class AppConstants {
   // — Platforms —
   static const List<String> allPlatforms = <String>[
     'remotive',
+    'remoteok',
+    'weworkremotely',
+    'arbeitnow',
+    'workingnomads',
+    'jobicy',
+    'hn_jobs',
+    'nodesk',
     'freelancer',
     'mostaql',
     'khamsat',
@@ -34,6 +41,13 @@ class AppConstants {
   static const Map<String, String> platformLabels = <String, String>{
     'all': 'الكل',
     'remotive': 'Remotive',
+    'remoteok': 'RemoteOK',
+    'weworkremotely': 'WWR',
+    'arbeitnow': 'Arbeitnow',
+    'workingnomads': 'WorkingNomads',
+    'jobicy': 'Jobicy',
+    'hn_jobs': 'HN Jobs',
+    'nodesk': 'NoDesk',
     'freelancer': 'Freelancer',
     'mostaql': 'مستقل',
     'khamsat': 'خمسات',
@@ -41,6 +55,13 @@ class AppConstants {
 
   static const Map<String, Color> platformColors = <String, Color>{
     'remotive': Color(0xFFFF6B35),
+    'remoteok': Color(0xFFE94F37),
+    'weworkremotely': Color(0xFF2F5DE9),
+    'arbeitnow': Color(0xFF34D399),
+    'workingnomads': Color(0xFF0EA5E9),
+    'jobicy': Color(0xFFF59E0B),
+    'hn_jobs': Color(0xFFFF6600),
+    'nodesk': Color(0xFF6366F1),
     'freelancer': Color(0xFF29B2FE),
     'mostaql': Color(0xFF4E4BBB),
     'khamsat': Color(0xFF2EAF5C),
