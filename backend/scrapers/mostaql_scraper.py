@@ -60,7 +60,7 @@ class MostaqlScraper(BaseScraper):
                 description = brief.get_text(" ", strip=True) if brief else ""
 
                 # فلتر مبدئي — مشاريع الموبايل فقط
-                if not self.is_mobile_related(title, description):
+                if not self.is_programming_related(title, description):
                     continue
 
                 # الوقت: time[datetime="2026-04-16 22:02:58"]

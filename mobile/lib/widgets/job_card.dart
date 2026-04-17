@@ -7,10 +7,16 @@ import 'platform_badge.dart';
 
 /// كارد مشروع واحد في قائمة الفرص.
 class JobCard extends StatelessWidget {
-  const JobCard({super.key, required this.job, required this.onTap});
+  const JobCard({
+    super.key,
+    required this.job,
+    required this.onTap,
+    this.onFavoriteToggle,
+  });
 
   final Job job;
   final VoidCallback onTap;
+  final VoidCallback? onFavoriteToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +57,29 @@ class JobCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header: Badge + Budget
+                    // Header: Badge + Favorite + Budget
                     Row(
                       children: [
                         PlatformBadge(platform: job.platform),
                         const Spacer(),
+                        if (onFavoriteToggle != null)
+                          InkWell(
+                            onTap: onFavoriteToggle,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                job.isFavorite
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 20,
+                                color: job.isFavorite
+                                    ? Colors.redAccent
+                                    : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 6),
                         _BudgetPill(text: job.budgetText),
                       ],
                     ),

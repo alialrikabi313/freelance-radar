@@ -15,6 +15,8 @@ class Job {
     required this.isHourly,
     required this.relevanceScore,
     required this.isRead,
+    required this.category,
+    required this.isFavorite,
     this.budgetMin,
     this.budgetMax,
     this.clientName,
@@ -42,6 +44,8 @@ class Job {
   final bool isHourly;
   final double relevanceScore;
   final bool isRead;
+  final String category;
+  final bool isFavorite;
   final String? country;
 
   factory Job.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -66,7 +70,9 @@ class Job {
       scrapedAt: _toDate(data['scraped_at']) ?? DateTime.now(),
       isHourly: (data['is_hourly'] ?? false) as bool,
       relevanceScore: _toDouble(data['relevance_score']) ?? 0.0,
-      isRead: false, // is_read محلية فقط
+      isRead: false, // محلية فقط
+      isFavorite: false, // محلية فقط
+      category: (data['category'] ?? 'other') as String,
       country: data['country'] as String?,
     );
   }
@@ -93,6 +99,8 @@ class Job {
       isHourly: (json['is_hourly'] ?? false) as bool,
       relevanceScore: _toDouble(json['relevance_score']) ?? 0.0,
       isRead: (json['is_read'] ?? false) as bool,
+      isFavorite: (json['is_favorite'] ?? false) as bool,
+      category: (json['category'] ?? 'other') as String,
       country: json['country'] as String?,
     );
   }
@@ -116,6 +124,8 @@ class Job {
         'is_hourly': isHourly,
         'relevance_score': relevanceScore,
         'is_read': isRead,
+        'is_favorite': isFavorite,
+        'category': category,
         'country': country,
       };
 
@@ -147,7 +157,7 @@ class Job {
     return '$symbol$lo - $symbol$hi$suffix';
   }
 
-  Job copyWith({bool? isRead}) => Job(
+  Job copyWith({bool? isRead, bool? isFavorite}) => Job(
         id: id,
         platform: platform,
         title: title,
@@ -166,6 +176,8 @@ class Job {
         isHourly: isHourly,
         relevanceScore: relevanceScore,
         isRead: isRead ?? this.isRead,
+        isFavorite: isFavorite ?? this.isFavorite,
+        category: category,
         country: country,
       );
 }

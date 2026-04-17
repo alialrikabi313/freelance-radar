@@ -31,7 +31,9 @@ class JobCreate(BaseModel):
         """مفتاح ثابت لكل URL — يُستخدم كـ Firestore document id."""
         return hashlib.sha1(self.url.encode("utf-8")).hexdigest()
 
-    def to_firestore(self, *, relevance_score: float) -> dict:
+    def to_firestore(
+        self, *, relevance_score: float, category: str = "other"
+    ) -> dict:
         """تحويل إلى dict جاهز للحفظ في Firestore."""
         return {
             "platform": self.platform,
@@ -51,4 +53,7 @@ class JobCreate(BaseModel):
             "is_hourly": self.is_hourly,
             "country": self.country,
             "relevance_score": relevance_score,
+            "category": category,
+            # حقل مساعد للفلترة — "هل الميزانية معلنة؟"
+            "has_budget": self.budget_max is not None,
         }

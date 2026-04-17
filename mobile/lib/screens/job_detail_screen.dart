@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../config/theme.dart';
 import '../models/job_model.dart';
+import '../providers/jobs_provider.dart';
 import '../utils/time_ago.dart';
 import '../utils/url_launcher.dart';
 import '../widgets/platform_badge.dart';
@@ -15,6 +17,21 @@ class JobDetailScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تفاصيل المشروع'),
+        actions: [
+          Consumer<JobsProvider>(
+            builder: (context, jobs, _) {
+              final isFav = jobs.isFavorite(job.id) || job.isFavorite;
+              return IconButton(
+                tooltip: isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة',
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.redAccent : null,
+                ),
+                onPressed: () => jobs.toggleFavorite(job),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(

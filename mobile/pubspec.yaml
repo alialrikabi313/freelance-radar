@@ -38,6 +38,10 @@ dependencies:
   # Pull to refresh
   pull_to_refresh_flutter3: ^2.0.2
 
+  # Local notifications
+  flutter_local_notifications: ^17.2.2
+  permission_handler: ^11.3.1
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

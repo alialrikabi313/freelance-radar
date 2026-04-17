@@ -67,7 +67,7 @@ class RemotiveScraper(BaseScraper):
                 tags = item.get("tags") or []
 
                 # الفلتر الأساسي: هل هذه فرصة موبايل؟
-                if not self.is_mobile_related(
+                if not self.is_programming_related(
                     title, description, " ".join(tags)
                 ):
                     continue

@@ -10,6 +10,7 @@ import 'providers/filter_provider.dart';
 import 'providers/jobs_provider.dart';
 import 'services/cache_service.dart';
 import 'services/firestore_service.dart';
+import 'services/notifications_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,12 +27,17 @@ Future<void> main() async {
   await cache.init();
 
   final firestore = FirestoreService();
+  final notifications = NotificationsService(firestore, cache);
+  await notifications.init();
+  // ابدأ المراقبة تلقائياً لو المستخدم فعّل الإشعارات سابقاً
+  await notifications.start();
 
   runApp(
     MultiProvider(
       providers: [
         Provider<CacheService>.value(value: cache),
         Provider<FirestoreService>.value(value: firestore),
+        Provider<NotificationsService>.value(value: notifications),
         ChangeNotifierProvider(create: (_) => FilterProvider(cache)),
         ChangeNotifierProvider(
           create: (_) => JobsProvider(firestore, cache),

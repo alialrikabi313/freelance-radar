@@ -60,7 +60,7 @@ class KhamsatScraper(BaseScraper):
 
                 # خمسات لا يعرض الوصف في صفحة القائمة
                 # نستخدم العنوان فقط للفلتر
-                if not self.is_mobile_related(title):
+                if not self.is_programming_related(title):
                     continue
 
                 # الوقت: span[title="17/04/2026 03:46:35 GMT"]

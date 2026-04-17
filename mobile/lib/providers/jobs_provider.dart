@@ -1,13 +1,14 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/job_model.dart';
 import '../services/cache_service.dart';
 import '../services/firestore_service.dart';
 
-/// يدير قائمة الوظائف المقروءة من Firestore.
+/// يدير قائمة الوظائف — يستخدم Firestore streams للتحديث اللحظي.
+///
+/// عند أي تغيير في الفلاتر، تُعاد تهيئة الـ subscription بالمعاملات الجديدة.
 class JobsProvider extends ChangeNotifier {
   JobsProvider(this._firestore, this._cache);
 
@@ -16,134 +17,133 @@ class JobsProvider extends ChangeNotifier {
 
   List<Job> _jobs = <Job>[];
   bool _isLoading = false;
-  bool _isLoadingMore = false;
   String? _error;
-  bool _hasMore = true;
   DateTime? _lastUpdated;
-  DocumentSnapshot<Map<String, dynamic>>? _lastDoc;
   Set<String> _readIds = <String>{};
+  Set<String> _favoriteIds = <String>{};
+  StreamSubscription<List<Job>>? _sub;
+  int _currentLimit = 20;
 
-  static const int _pageSize = 20;
+  // آخر معاملات مُستخدمة (لاستعادة الاشتراك)
+  String _lastPlatform = 'all';
+  String _lastCategory = 'all';
+  String _lastSortBy = 'published_at';
+  String _lastSortOrder = 'desc';
+  String _lastLanguage = 'all';
+  double _lastMinBudget = 0;
+  bool _lastIncludeUnknown = true;
+  String? _lastSearch;
 
   List<Job> get jobs => List.unmodifiable(_jobs);
   bool get isLoading => _isLoading;
-  bool get isLoadingMore => _isLoadingMore;
   String? get error => _error;
-  bool get hasMore => _hasMore;
   DateTime? get lastUpdated => _lastUpdated;
+  bool get canLoadMore => _jobs.length >= _currentLimit;
 
-  /// الجلب الأول.
-  Future<void> fetchJobs({
+  /// تشغيل الـ stream بالمعاملات المعطاة.
+  void subscribe({
     required String platform,
+    required String category,
     required String sortBy,
     required String sortOrder,
     required String language,
     required double minBudget,
+    required bool includeUnknownBudget,
     String? search,
-    bool forceReload = false,
-  }) async {
-    if (_isLoading) return;
-    _isLoading = true;
-    _error = null;
-    _hasMore = true;
-    _lastDoc = null;
-    notifyListeners();
-
+  }) {
     _readIds = _cache.readJobIds;
+    _favoriteIds = _cache.favoriteJobIds;
 
-    if (_jobs.isEmpty && !forceReload) {
+    _lastPlatform = platform;
+    _lastCategory = category;
+    _lastSortBy = sortBy;
+    _lastSortOrder = sortOrder;
+    _lastLanguage = language;
+    _lastMinBudget = minBudget;
+    _lastIncludeUnknown = includeUnknownBudget;
+    _lastSearch = search;
+
+    // عرض الكاش كـ fallback سريع.
+    if (_jobs.isEmpty) {
       final cached = _cache.getCachedJobs();
       if (cached.isNotEmpty) {
-        _jobs = _applyReadStatus(cached);
+        _jobs = _decorate(cached);
         notifyListeners();
       }
     }
 
-    try {
-      final page = await _firestore.fetchJobs(
-        platform: platform,
-        sortBy: sortBy,
-        sortOrder: sortOrder,
-        language: language,
-        minBudget: minBudget > 0 ? minBudget : null,
-        search: search,
-        limit: _pageSize,
-      );
-      _jobs = _applyReadStatus(page.jobs);
-      _hasMore = page.hasMore;
-      _lastDoc = page.lastDocument;
-      _lastUpdated = await _firestore.fetchLastUpdated();
-      _error = null;
-      await _cache.saveCachedJobs(_jobs);
-    } on FirestoreServiceException catch (e) {
-      _error = e.message;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// تحميل الصفحة التالية.
-  Future<void> loadMore({
-    required String platform,
-    required String sortBy,
-    required String sortOrder,
-    required String language,
-    required double minBudget,
-    String? search,
-  }) async {
-    if (_isLoadingMore || !_hasMore || _isLoading || _lastDoc == null) return;
-    _isLoadingMore = true;
+    _isLoading = true;
+    _error = null;
     notifyListeners();
 
-    try {
-      final page = await _firestore.fetchJobs(
-        platform: platform,
-        sortBy: sortBy,
-        sortOrder: sortOrder,
-        language: language,
-        minBudget: minBudget > 0 ? minBudget : null,
-        search: search,
-        limit: _pageSize,
-        startAfter: _lastDoc,
-      );
-      final existing = _jobs.map((j) => j.id).toSet();
-      _jobs = [
-        ..._jobs,
-        ..._applyReadStatus(
-          page.jobs.where((j) => !existing.contains(j.id)).toList(),
-        ),
-      ];
-      _hasMore = page.hasMore;
-      _lastDoc = page.lastDocument ?? _lastDoc;
-    } on FirestoreServiceException catch (e) {
-      _error = e.message;
-    } finally {
-      _isLoadingMore = false;
-      notifyListeners();
-    }
-  }
-
-  /// Pull-to-refresh: مع GitHub Actions، الـ refresh يقتصر على إعادة الجلب.
-  Future<void> refresh({
-    required String platform,
-    required String sortBy,
-    required String sortOrder,
-    required String language,
-    required double minBudget,
-    String? search,
-  }) async {
-    await fetchJobs(
+    _sub?.cancel();
+    _sub = _firestore
+        .watchJobs(
       platform: platform,
+      category: category,
+      minBudget: minBudget > 0 ? minBudget : null,
+      includeUnknownBudget: includeUnknownBudget,
       sortBy: sortBy,
       sortOrder: sortOrder,
       language: language,
-      minBudget: minBudget,
       search: search,
-      forceReload: true,
+      limit: _currentLimit,
+    )
+        .listen(
+      (newJobs) {
+        _jobs = _decorate(newJobs);
+        _isLoading = false;
+        _error = null;
+        notifyListeners();
+        _cache.saveCachedJobs(_jobs);
+        _refreshLastUpdated();
+      },
+      onError: (err) {
+        _error = err is FirestoreServiceException
+            ? err.message
+            : 'حدث خطأ أثناء جلب البيانات';
+        _isLoading = false;
+        notifyListeners();
+      },
     );
   }
 
+  /// تحميل المزيد — نزيد الحد الأقصى ونعيد الاشتراك.
+  Future<void> loadMore() async {
+    _currentLimit += 20;
+    subscribe(
+      platform: _lastPlatform,
+      category: _lastCategory,
+      sortBy: _lastSortBy,
+      sortOrder: _lastSortOrder,
+      language: _lastLanguage,
+      minBudget: _lastMinBudget,
+      includeUnknownBudget: _lastIncludeUnknown,
+      search: _lastSearch,
+    );
+  }
+
+  /// سحب للتحديث — مع streams يكفي إعادة الاشتراك.
+  Future<void> refresh() async {
+    _currentLimit = 20;
+    subscribe(
+      platform: _lastPlatform,
+      category: _lastCategory,
+      sortBy: _lastSortBy,
+      sortOrder: _lastSortOrder,
+      language: _lastLanguage,
+      minBudget: _lastMinBudget,
+      includeUnknownBudget: _lastIncludeUnknown,
+      search: _lastSearch,
+    );
+  }
+
+  Future<void> _refreshLastUpdated() async {
+    _lastUpdated = await _firestore.fetchLastUpdated();
+    notifyListeners();
+  }
+
+  /// علّم وظيفة مقروءة محلياً.
   Future<void> markRead(String jobId) async {
     final idx = _jobs.indexWhere((j) => j.id == jobId);
     if (idx < 0 || _jobs[idx].isRead) return;
@@ -153,10 +153,38 @@ class JobsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<Job> _applyReadStatus(List<Job> source) {
-    if (_readIds.isEmpty) return source;
+  /// تبديل حالة المفضلة.
+  Future<void> toggleFavorite(Job job) async {
+    await _cache.toggleFavorite(job.id);
+    if (_favoriteIds.contains(job.id)) {
+      _favoriteIds.remove(job.id);
+      await _cache.removeFavoriteData(job.id);
+    } else {
+      _favoriteIds.add(job.id);
+      await _cache.saveFavoriteJob(job);
+    }
+    final idx = _jobs.indexWhere((j) => j.id == job.id);
+    if (idx >= 0) {
+      _jobs[idx] = _jobs[idx].copyWith(isFavorite: _favoriteIds.contains(job.id));
+    }
+    notifyListeners();
+  }
+
+  bool isFavorite(String id) => _favoriteIds.contains(id);
+
+  List<Job> _decorate(List<Job> source) {
+    if (_readIds.isEmpty && _favoriteIds.isEmpty) return source;
     return source
-        .map((j) => _readIds.contains(j.id) ? j.copyWith(isRead: true) : j)
+        .map((j) => j.copyWith(
+              isRead: _readIds.contains(j.id) ? true : j.isRead,
+              isFavorite: _favoriteIds.contains(j.id) ? true : j.isFavorite,
+            ))
         .toList(growable: false);
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }

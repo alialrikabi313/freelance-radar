@@ -18,7 +18,7 @@ from scrapers import (
     RemotiveScraper,
 )
 
-from .ai_filter import score_job
+from .ai_filter import categorize_job, score_job
 
 logger = logging.getLogger(__name__)
 
@@ -90,9 +90,14 @@ def _write_jobs(jobs: List[JobCreate]) -> tuple[int, int]:
             continue
         kept += 1
 
+        category = categorize_job(job)
         doc_id = job.doc_id()
         ref = coll.document(doc_id)
-        batch.set(ref, job.to_firestore(relevance_score=relevance), merge=True)
+        batch.set(
+            ref,
+            job.to_firestore(relevance_score=relevance, category=category),
+            merge=True,
+        )
         in_batch += 1
         written += 1
 

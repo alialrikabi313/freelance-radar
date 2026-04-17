@@ -6,6 +6,7 @@ import '../config/theme.dart';
 import '../providers/filter_provider.dart';
 import '../providers/jobs_provider.dart';
 import '../services/cache_service.dart';
+import '../services/notifications_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -19,6 +20,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late double _minBudget;
   late String _language;
 
+  // Notifications
+  late bool _notifEnabled;
+  late double _notifBudget;
+  late bool _notifIncludeUnknown;
+
   @override
   void initState() {
     super.initState();
@@ -26,15 +32,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _enabledPlatforms = List.of(cache.enabledPlatforms);
     _minBudget = cache.minBudget;
     _language = cache.language;
+    _notifEnabled = cache.notificationsEnabled;
+    _notifBudget = cache.notificationBudgetThreshold;
+    _notifIncludeUnknown = cache.notificationIncludeUnknownBudget;
   }
 
   Future<void> _save() async {
     final cache = context.read<CacheService>();
     final filter = context.read<FilterProvider>();
+    final notifications = context.read<NotificationsService>();
 
     await cache.setEnabledPlatforms(_enabledPlatforms);
     await cache.setMinBudget(_minBudget);
     await cache.setLanguage(_language);
+
+    await cache.setNotificationBudgetThreshold(_notifBudget);
+    await cache.setNotificationIncludeUnknownBudget(_notifIncludeUnknown);
+
+    // تفعيل الإشعارات مع طلب الصلاحية
+    if (_notifEnabled && !cache.notificationsEnabled) {
+      final granted = await notifications.requestPermission();
+      if (!granted) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لم يتم منح إذن الإشعارات'),
+          ),
+        );
+        setState(() => _notifEnabled = false);
+        return;
+      }
+    }
+    await cache.setNotificationsEnabled(_notifEnabled);
+
+    // أعد تشغيل مراقبة الإشعارات بالإعدادات الجديدة
+    await notifications.start();
 
     await filter.setMinBudget(_minBudget);
     await filter.setLanguage(_language);
@@ -46,14 +78,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _refreshNow() async {
-    final filter = context.read<FilterProvider>();
-    await context.read<JobsProvider>().refresh(
-          platform: filter.selectedPlatform,
-          sortBy: filter.sortBy,
-          sortOrder: filter.sortOrder,
-          language: filter.language,
-          minBudget: filter.minBudget,
-        );
+    await context.read<JobsProvider>().refresh();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('تم إعادة الجلب من Firestore')),
@@ -76,6 +101,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // — Notifications —
+          _SectionCard(
+            title: 'إشعارات الفرص عالية القيمة 🔔',
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: _notifEnabled,
+                  onChanged: (v) => setState(() => _notifEnabled = v),
+                  title: const Text('تفعيل الإشعارات'),
+                  subtitle: const Text(
+                    'إشعار فوري عند وصول فرصة جديدة تطابق معيار الميزانية',
+                  ),
+                ),
+                if (_notifEnabled) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'الحد الأدنى للميزانية: \$${_notifBudget.round()}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primary,
+                          ),
+                        ),
+                        Slider(
+                          value: _notifBudget,
+                          min: 100,
+                          max: 10000,
+                          divisions: 99,
+                          label: '\$${_notifBudget.round()}',
+                          onChanged: (v) =>
+                              setState(() => _notifBudget = v),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text('\$100'),
+                            Text('\$10,000'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    value: _notifIncludeUnknown,
+                    onChanged: (v) =>
+                        setState(() => _notifIncludeUnknown = v),
+                    title: const Text('شمل الوظائف بدون ميزانية معلنة'),
+                    subtitle: const Text(
+                      'مفيد لمستقل وخمسات؛ قد يزيد عدد الإشعارات',
+                    ),
+                  ),
+                ],
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: Text(
+                    'ℹ️ الإشعارات تعمل عند فتح التطبيق أو أثناء تواجده في الخلفية القريبة.',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // — Platforms —
           _SectionCard(
             title: 'المنصات المفعّلة',
             child: Column(
@@ -104,8 +203,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // — Min budget for filter —
           _SectionCard(
-            title: 'الحد الأدنى للميزانية (\$)',
+            title: 'الحد الأدنى للميزانية (\$) — فلتر افتراضي',
             child: Column(
               children: [
                 Slider(
@@ -138,6 +239,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // — Language —
           _SectionCard(
             title: 'لغة المشاريع',
             child: Column(
@@ -164,6 +267,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+
+          // — Data source —
           _SectionCard(
             title: 'مصدر البيانات',
             child: const Padding(
@@ -175,8 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'البيانات تُجلب من Firestore. يقوم GitHub Actions '
-                      'بتحديث البيانات كل 30 دقيقة.',
+                      'التحديث اللحظي مفعّل. GitHub Actions يسحب فرصاً جديدة كل 30 دقيقة.',
                       style: TextStyle(
                           color: AppTheme.textSecondary, fontSize: 13),
                     ),

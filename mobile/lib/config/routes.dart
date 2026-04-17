@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/job_model.dart';
+import '../screens/favorites_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/job_detail_screen.dart';
 import '../screens/settings_screen.dart';
@@ -11,6 +12,7 @@ class AppRoutes {
   static const String home = '/';
   static const String jobDetail = '/job';
   static const String settings = '/settings';
+  static const String favorites = '/favorites';
 
   static Route<dynamic> onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
@@ -18,6 +20,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       case settings:
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
+      case favorites:
+        return MaterialPageRoute(builder: (_) => const FavoritesScreen());
       case jobDetail:
         final job = routeSettings.arguments as Job;
         return MaterialPageRoute(

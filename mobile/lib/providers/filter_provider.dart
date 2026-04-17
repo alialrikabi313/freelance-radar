@@ -2,33 +2,45 @@ import 'package:flutter/foundation.dart';
 
 import '../services/cache_service.dart';
 
-/// حالة الفلاتر: المنصة، الترتيب، اللغة، البحث.
+/// حالة الفلاتر: المنصة، الفئة، الترتيب، اللغة، الميزانية، البحث.
 class FilterProvider extends ChangeNotifier {
   FilterProvider(this._cache)
       : _sortBy = _cache.sortBy,
         _sortOrder = _cache.sortOrder,
         _language = _cache.language,
-        _minBudget = _cache.minBudget;
+        _minBudget = _cache.minBudget,
+        _selectedCategory = _cache.selectedCategory;
 
   final CacheService _cache;
 
   String _selectedPlatform = 'all';
+  String _selectedCategory;
   String _sortBy;
   String _sortOrder;
   String _language;
   double _minBudget;
+  bool _includeUnknownBudget = true;
   String _searchQuery = '';
 
   String get selectedPlatform => _selectedPlatform;
+  String get selectedCategory => _selectedCategory;
   String get sortBy => _sortBy;
   String get sortOrder => _sortOrder;
   String get language => _language;
   double get minBudget => _minBudget;
+  bool get includeUnknownBudget => _includeUnknownBudget;
   String get searchQuery => _searchQuery;
 
   void setPlatform(String platform) {
     if (_selectedPlatform == platform) return;
     _selectedPlatform = platform;
+    notifyListeners();
+  }
+
+  Future<void> setCategory(String category) async {
+    if (_selectedCategory == category) return;
+    _selectedCategory = category;
+    await _cache.setSelectedCategory(category);
     notifyListeners();
   }
 
@@ -56,6 +68,12 @@ class FilterProvider extends ChangeNotifier {
     if (_minBudget == value) return;
     _minBudget = value;
     await _cache.setMinBudget(value);
+    notifyListeners();
+  }
+
+  void setIncludeUnknownBudget(bool value) {
+    if (_includeUnknownBudget == value) return;
+    _includeUnknownBudget = value;
     notifyListeners();
   }
 

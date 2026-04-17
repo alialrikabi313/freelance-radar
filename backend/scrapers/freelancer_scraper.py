@@ -119,7 +119,7 @@ class FreelancerScraper(BaseScraper):
             "preview_description"
         ) or ""
 
-        if not self.is_mobile_related(title, description):
+        if not self.is_programming_related(title, description):
             return None
 
         budget = project.get("budget") or {}

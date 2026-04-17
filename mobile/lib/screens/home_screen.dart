@@ -7,6 +7,8 @@ import '../config/routes.dart';
 import '../config/theme.dart';
 import '../providers/filter_provider.dart';
 import '../providers/jobs_provider.dart';
+import '../widgets/budget_filter_chips.dart';
+import '../widgets/category_filter_chips.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/filter_chips.dart';
 import '../widgets/job_card.dart';
@@ -30,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initialFetch());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _subscribe());
   }
 
   @override
@@ -44,46 +46,37 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      final filter = context.read<FilterProvider>();
-      context.read<JobsProvider>().loadMore(
-            platform: filter.selectedPlatform,
-            sortBy: filter.sortBy,
-            sortOrder: filter.sortOrder,
-            language: filter.language,
-            minBudget: filter.minBudget,
-            search: filter.searchQuery.isEmpty ? null : filter.searchQuery,
-          );
+      final jobs = context.read<JobsProvider>();
+      if (!jobs.isLoading && jobs.canLoadMore) {
+        jobs.loadMore();
+      }
     }
   }
 
-  Future<void> _initialFetch() async {
+  void _subscribe() {
     final filter = context.read<FilterProvider>();
-    await context.read<JobsProvider>().fetchJobs(
+    context.read<JobsProvider>().subscribe(
           platform: filter.selectedPlatform,
+          category: filter.selectedCategory,
           sortBy: filter.sortBy,
           sortOrder: filter.sortOrder,
           language: filter.language,
           minBudget: filter.minBudget,
+          includeUnknownBudget: filter.includeUnknownBudget,
           search: filter.searchQuery.isEmpty ? null : filter.searchQuery,
         );
   }
 
   Future<void> _onRefresh() async {
-    final filter = context.read<FilterProvider>();
-    await context.read<JobsProvider>().refresh(
-          platform: filter.selectedPlatform,
-          sortBy: filter.sortBy,
-          sortOrder: filter.sortOrder,
-          language: filter.language,
-          minBudget: filter.minBudget,
-          search: filter.searchQuery.isEmpty ? null : filter.searchQuery,
-        );
+    await context.read<JobsProvider>().refresh();
     _refreshController.refreshCompleted();
   }
 
-  Future<void> _reloadAfterFilterChange() async {
-    _scrollController.jumpTo(0);
-    await _initialFetch();
+  void _reloadAfterFilterChange() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    _subscribe();
   }
 
   Future<void> _showSortSheet() async {
@@ -99,10 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'ترتيب حسب',
-                  style: Theme.of(ctx).textTheme.titleLarge,
-                ),
+                Text('ترتيب حسب',
+                    style: Theme.of(ctx).textTheme.titleLarge),
                 const SizedBox(height: 8),
                 for (final opt in SortOption.all)
                   RadioListTile<String>(
@@ -113,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (v == null) return;
                       await filter.setSortBy(v);
                       if (ctx.mounted) Navigator.of(ctx).pop();
-                      await _reloadAfterFilterChange();
+                      _reloadAfterFilterChange();
                     },
                   ),
                 const Divider(height: 24),
@@ -122,13 +113,26 @@ class _HomeScreenState extends State<HomeScreen> {
                   onChanged: (_) async {
                     await filter.toggleSortOrder();
                     if (ctx.mounted) Navigator.of(ctx).pop();
-                    await _reloadAfterFilterChange();
+                    _reloadAfterFilterChange();
                   },
                   title: const Text('ترتيب تنازلي'),
                   subtitle: Text(
                     filter.sortOrder == 'desc'
                         ? 'من الأعلى إلى الأدنى'
                         : 'من الأدنى إلى الأعلى',
+                  ),
+                ),
+                const Divider(height: 24),
+                SwitchListTile(
+                  value: filter.includeUnknownBudget,
+                  onChanged: (v) {
+                    filter.setIncludeUnknownBudget(v);
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    _reloadAfterFilterChange();
+                  },
+                  title: const Text('شمل الوظائف بدون ميزانية معلنة'),
+                  subtitle: const Text(
+                    'مفيد لمستقل وخمسات (لا يعرضان الميزانية في القائمة)',
                   ),
                 ),
               ],
@@ -158,6 +162,12 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
+            tooltip: 'المفضلة',
+            icon: const Icon(Icons.favorite_outline),
+            onPressed: () =>
+                Navigator.of(context).pushNamed(AppRoutes.favorites),
+          ),
+          IconButton(
             tooltip: 'ترتيب',
             icon: const Icon(Icons.sort_rounded),
             onPressed: _showSortSheet,
@@ -170,21 +180,45 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_searchOpen ? 120 : 52),
+          preferredSize: Size.fromHeight(_searchOpen ? 212 : 140),
           child: Column(
             children: [
-              if (_searchOpen) _SearchBar(
-                controller: _searchController,
-                onSubmit: (q) {
-                  context.read<FilterProvider>().setSearch(q);
-                  _reloadAfterFilterChange();
-                },
-              ),
+              if (_searchOpen)
+                _SearchBar(
+                  controller: _searchController,
+                  onSubmit: (q) {
+                    context.read<FilterProvider>().setSearch(q);
+                    _reloadAfterFilterChange();
+                  },
+                ),
+              // Platform chips
               Consumer<FilterProvider>(
                 builder: (context, filter, _) => PlatformFilterChips(
                   selected: filter.selectedPlatform,
                   onChanged: (p) {
                     filter.setPlatform(p);
+                    _reloadAfterFilterChange();
+                  },
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Category chips
+              Consumer<FilterProvider>(
+                builder: (context, filter, _) => CategoryFilterChips(
+                  selected: filter.selectedCategory,
+                  onChanged: (c) {
+                    filter.setCategory(c);
+                    _reloadAfterFilterChange();
+                  },
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Budget chips
+              Consumer<FilterProvider>(
+                builder: (context, filter, _) => BudgetFilterChips(
+                  selected: filter.minBudget,
+                  onChanged: (v) async {
+                    await filter.setMinBudget(v);
                     _reloadAfterFilterChange();
                   },
                 ),
@@ -202,7 +236,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           if (!jobs.isLoading && jobs.jobs.isEmpty) {
             if (jobs.error != null) {
-              return EmptyState.error(jobs.error!, onRetry: _initialFetch);
+              return EmptyState.error(jobs.error!, onRetry: _subscribe);
             }
             return EmptyState.noResults(onRefresh: _onRefresh);
           }
@@ -217,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: ListView.separated(
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
-              itemCount: jobs.jobs.length + (jobs.isLoadingMore ? 1 : 0),
+              itemCount: jobs.jobs.length + (jobs.canLoadMore ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 if (i >= jobs.jobs.length) {
@@ -229,6 +263,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 final job = jobs.jobs[i];
                 return JobCard(
                   job: job,
+                  onFavoriteToggle: () =>
+                      context.read<JobsProvider>().toggleFavorite(job),
                   onTap: () {
                     context.read<JobsProvider>().markRead(job.id);
                     Navigator.of(context).pushNamed(
@@ -265,10 +301,7 @@ class _AppBarTitle extends StatelessWidget {
         const SizedBox(width: 10),
         const Text(
           'FreelanceRadar',
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 18,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
         ),
       ],
     );

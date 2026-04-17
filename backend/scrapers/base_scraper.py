@@ -17,21 +17,42 @@ from models.job import JobCreate
 logger = logging.getLogger(__name__)
 
 
-# كلمات مفتاحية للتأكد من أن المشروع متعلق بتطوير تطبيقات الموبايل
-MOBILE_KEYWORDS = [
-    # English
-    "flutter", "dart", "react native", "react-native",
-    "mobile app", "mobile application", "mobile development",
-    "android", "ios", "iphone", "ipad",
-    "swift", "swiftui", "kotlin", "jetpack compose",
-    "xamarin", "ionic", "cordova", "nativescript",
-    "app development", "cross-platform", "cross platform",
-    "objective-c", "objective c",
-    "google play", "app store", "apk",
-    # Arabic
-    "تطبيق", "تطبيقات", "موبايل", "جوال", "هاتف",
-    "أندرويد", "اندرويد", "آيفون", "ايفون", "ايباد",
-    "فلاتر", "فلتر", "رياكت نيتيف",
+# كلمات مفتاحية واسعة تشمل كل مجالات البرمجة
+PROGRAMMING_KEYWORDS = [
+    # Mobile
+    "flutter", "dart", "react native", "mobile app", "android", "ios",
+    "swift", "kotlin", "xamarin", "ionic",
+    "تطبيق", "موبايل", "جوال", "أندرويد", "آيفون",
+    # Web
+    "html", "css", "javascript", "typescript", "react", "vue", "angular",
+    "next.js", "nuxt", "tailwind", "website", "web app", "frontend",
+    "موقع", "واجهة",
+    # Backend
+    "backend", "api", "node.js", "express", "django", "fastapi", "flask",
+    "spring", "laravel", "rails", "asp.net", "microservices",
+    "postgres", "mysql", "mongodb", "redis",
+    "خادم", "سيرفر",
+    # DevOps / Cloud
+    "docker", "kubernetes", "aws", "gcp", "azure", "devops", "ci/cd",
+    # AI/ML
+    "machine learning", "deep learning", "ai ", "llm", "gpt",
+    "tensorflow", "pytorch", "computer vision",
+    "ذكاء اصطناعي", "تعلم آلي",
+    # Game
+    "unity", "unreal", "godot", "game dev",
+    "لعبة", "يونيتي",
+    # Data
+    "data science", "data analysis", "etl", "pandas",
+    "تحليل بيانات",
+    # Blockchain
+    "blockchain", "solidity", "smart contract", "web3", "ethereum",
+    "بلوكتشين",
+    # General programming
+    "developer", "programming", "programmer", "engineer",
+    "software", "code", "coding",
+    "python", "java ", "c++", "c#", "go ", "rust", "php", "ruby",
+    "git", "github",
+    "مبرمج", "مطور", "برمجة", "تطوير",
 ]
 
 
@@ -100,10 +121,16 @@ class BaseScraper(ABC):
         return collapsed
 
     @staticmethod
-    def is_mobile_related(*texts: str) -> bool:
-        """فحص أولي قبل التخزين: هل النص يذكر شيئاً متعلقاً بالموبايل؟"""
+    def is_programming_related(*texts: str) -> bool:
+        """فحص أولي قبل التخزين: هل النص يذكر شيئاً متعلقاً بالبرمجة؟
+
+        الفلتر الدقيق لاحقاً في services/ai_filter.score_job.
+        """
         haystack = " ".join(t for t in texts if t).lower()
-        return any(k in haystack for k in MOBILE_KEYWORDS)
+        return any(k in haystack for k in PROGRAMMING_KEYWORDS)
+
+    # alias للتوافق مع الكود الأقدم
+    is_mobile_related = is_programming_related
 
     @staticmethod
     def extract_skills(text: str, known_skills: Iterable[str]) -> List[str]:
