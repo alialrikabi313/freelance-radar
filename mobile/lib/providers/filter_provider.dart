@@ -19,7 +19,9 @@ class FilterProvider extends ChangeNotifier {
   String _sortOrder;
   String _language;
   double _minBudget;
-  bool _includeUnknownBudget = true;
+  // افتراضياً false — عندما يختار المستخدم +$X نعرض فقط الوظائف
+  // بميزانية معلنة ≥ X (أكثر منطقية كـ default).
+  bool _includeUnknownBudget = false;
   String _searchQuery = '';
 
   String get selectedPlatform => _selectedPlatform;

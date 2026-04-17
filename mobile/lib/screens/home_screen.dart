@@ -213,12 +213,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              // Budget chips
+              // Budget chips + toggle "include unknown"
               Consumer<FilterProvider>(
                 builder: (context, filter, _) => BudgetFilterChips(
                   selected: filter.minBudget,
                   onChanged: (v) async {
                     await filter.setMinBudget(v);
+                    _reloadAfterFilterChange();
+                  },
+                  includeUnknownBudget: filter.includeUnknownBudget,
+                  onToggleIncludeUnknown: (v) {
+                    filter.setIncludeUnknownBudget(v);
                     _reloadAfterFilterChange();
                   },
                 ),
