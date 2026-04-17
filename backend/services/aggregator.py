@@ -20,6 +20,7 @@ from scrapers import (
     KhamsatScraper,
     MostaqlScraper,
     NoDeskScraper,
+    ReedScraper,
     RemoteOkScraper,
     RemotiveScraper,
     TheMuseScraper,
@@ -36,6 +37,7 @@ def _all_scrapers():
     return [
         # International — REST APIs
         AdzunaScraper(),  # أكبر مصدر — 100K+ وظيفة تقنية عالمية
+        ReedScraper(),  # السوق البريطاني — مئات الآلاف
         TheMuseScraper(),  # شركات معروفة (Apple, Google, BofA, ...)
         RemotiveScraper(),
         RemoteOkScraper(),

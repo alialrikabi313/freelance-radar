@@ -34,6 +34,9 @@ class Settings:
     adzuna_app_key: str = field(
         default_factory=lambda: os.getenv("ADZUNA_APP_KEY", "")
     )
+    reed_api_key: str = field(
+        default_factory=lambda: os.getenv("REED_API_KEY", "")
+    )
 
     # Filtering
     min_relevance_score: float = field(

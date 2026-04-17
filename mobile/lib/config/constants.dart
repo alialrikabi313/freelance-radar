@@ -26,6 +26,7 @@ class AppConstants {
   // — Platforms —
   static const List<String> allPlatforms = <String>[
     'adzuna',
+    'reed',
     'themuse',
     'remotive',
     'remoteok',
@@ -43,6 +44,7 @@ class AppConstants {
   static const Map<String, String> platformLabels = <String, String>{
     'all': 'الكل',
     'adzuna': 'Adzuna',
+    'reed': 'Reed',
     'themuse': 'The Muse',
     'remotive': 'Remotive',
     'remoteok': 'RemoteOK',
@@ -59,6 +61,7 @@ class AppConstants {
 
   static const Map<String, Color> platformColors = <String, Color>{
     'adzuna': Color(0xFF00B39F),
+    'reed': Color(0xFFE60028),
     'themuse': Color(0xFF9333EA),
     'remotive': Color(0xFFFF6B35),
     'remoteok': Color(0xFFE94F37),
