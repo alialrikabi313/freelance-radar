@@ -50,6 +50,7 @@ class AppConstants {
     'cryptojobs',
     'mostaql',
     'khamsat',
+    'akhtaboot',
   ];
 
   static const Map<String, String> platformLabels = <String, String>{
@@ -73,6 +74,7 @@ class AppConstants {
     'cryptojobs': 'CryptoJobs',
     'mostaql': 'مستقل',
     'khamsat': 'خمسات',
+    'akhtaboot': 'أخطبوط',
   };
 
   static const Map<String, Color> platformColors = <String, Color>{
@@ -95,6 +97,7 @@ class AppConstants {
     'cryptojobs': Color(0xFFF97316),
     'mostaql': Color(0xFF4E4BBB),
     'khamsat': Color(0xFF2EAF5C),
+    'akhtaboot': Color(0xFF16A34A),
   };
 
   // — Categories —

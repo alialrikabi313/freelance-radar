@@ -141,7 +141,7 @@ class JobDetailScreen extends StatelessWidget {
                 ],
               ),
             ),
-            _OpenButton(url: job.url),
+            _BottomActions(url: job.url, title: job.title),
           ],
         ),
       ),
@@ -364,19 +364,21 @@ class _ClientCard extends StatelessWidget {
   }
 }
 
-class _OpenButton extends StatefulWidget {
-  const _OpenButton({required this.url});
+class _BottomActions extends StatefulWidget {
+  const _BottomActions({required this.url, required this.title});
   final String url;
+  final String title;
 
   @override
-  State<_OpenButton> createState() => _OpenButtonState();
+  State<_BottomActions> createState() => _BottomActionsState();
 }
 
-class _OpenButtonState extends State<_OpenButton> {
+class _BottomActionsState extends State<_BottomActions> {
   bool _opening = false;
 
-  Future<void> _open() async {
+  Future<void> _openBrowser() async {
     setState(() => _opening = true);
+    HapticFeedback.lightImpact();
     final ok = await openExternalUrl(widget.url);
     if (!mounted) return;
     setState(() => _opening = false);
@@ -387,29 +389,58 @@ class _OpenButtonState extends State<_OpenButton> {
     }
   }
 
+  void _openPreview() {
+    HapticFeedback.lightImpact();
+    Navigator.of(context).pushNamed(
+      '/preview',
+      arguments: {'url': widget.url, 'title': widget.title},
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 54,
-          child: ElevatedButton.icon(
-            onPressed: _opening ? null : _open,
-            icon: _opening
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.open_in_new_rounded),
-            label: const Text('فتح في المنصة الأصلية'),
-          ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: SizedBox(
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: _opening ? null : _openBrowser,
+                  icon: _opening
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.open_in_new_rounded),
+                  label: const Text('فتح في المتصفح'),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              height: 54,
+              child: OutlinedButton.icon(
+                onPressed: _openPreview,
+                icon: const Icon(Icons.preview_outlined),
+                label: const Text('معاينة'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

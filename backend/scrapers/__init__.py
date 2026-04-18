@@ -1,3 +1,4 @@
+from .akhtaboot_scraper import AkhtabootScraper
 from .base_scraper import BaseScraper
 from .arbeitnow_scraper import ArbeitnowScraper
 from .cryptojobs_scraper import CryptoJobsScraper
@@ -20,6 +21,7 @@ from .working_nomads_scraper import WorkingNomadsScraper
 from .wwr_scraper import WeWorkRemotelyScraper
 
 __all__ = [
+    "AkhtabootScraper",
     "BaseScraper",
     "ArbeitnowScraper",
     "CryptoJobsScraper",

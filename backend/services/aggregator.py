@@ -12,6 +12,7 @@ from config import settings
 from firebase_client import get_firestore
 from models.job import JobCreate
 from scrapers import (
+    AkhtabootScraper,
     ArbeitnowScraper,
     CryptoJobsScraper,
     FindworkScraper,
@@ -65,9 +66,10 @@ def _all_scrapers():
         RedditScraper(),
         # Crypto / Web3
         CryptoJobsScraper(),
-        # Arabic platforms — web scraping
+        # Arabic / MENA platforms — web scraping
         MostaqlScraper(),
         KhamsatScraper(),
+        AkhtabootScraper(),
     ]
 
 
