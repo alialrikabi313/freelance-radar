@@ -111,12 +111,29 @@ class NotificationsService {
         .listen((newJobs) async {
       if (newJobs.isEmpty) return;
 
-      // حدّث وقت آخر فحص ليشير إلى آخر وظيفة شفناها.
       final latest = newJobs
           .map((j) => j.scrapedAt)
           .reduce((a, b) => a.isAfter(b) ? a : b);
 
+      // ساعات الهدوء — تخطّ الإشعارات لكن حدّث الوقت
+      if (_cache.isInQuietHours) {
+        await _cache.setLastNotifiedAt(latest);
+        return;
+      }
+
+      // فلتر keyword alerts إن وُجدت
+      final keywords = _cache.keywordAlerts
+          .map((k) => k.trim().toLowerCase())
+          .where((k) => k.isNotEmpty)
+          .toList();
+
       for (final job in newJobs) {
+        if (keywords.isNotEmpty) {
+          final haystack =
+              '${job.title} ${job.description} ${job.skills.join(" ")}'
+                  .toLowerCase();
+          if (!keywords.any((k) => haystack.contains(k))) continue;
+        }
         await _showJobNotification(job);
       }
       await _cache.setLastNotifiedAt(latest);

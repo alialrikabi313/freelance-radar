@@ -5,6 +5,7 @@ import '../screens/favorites_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/job_detail_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/stats_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -13,6 +14,7 @@ class AppRoutes {
   static const String jobDetail = '/job';
   static const String settings = '/settings';
   static const String favorites = '/favorites';
+  static const String stats = '/stats';
 
   static Route<dynamic> onGenerateRoute(RouteSettings routeSettings) {
     switch (routeSettings.name) {
@@ -22,6 +24,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const SettingsScreen());
       case favorites:
         return MaterialPageRoute(builder: (_) => const FavoritesScreen());
+      case stats:
+        return MaterialPageRoute(builder: (_) => const StatsScreen());
       case jobDetail:
         final job = routeSettings.arguments as Job;
         return MaterialPageRoute(

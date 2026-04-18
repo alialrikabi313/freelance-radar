@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../config/constants.dart';
 import '../config/theme.dart';
 import '../models/job_model.dart';
 import '../providers/jobs_provider.dart';
+import '../services/cache_service.dart';
 import '../utils/time_ago.dart';
 import '../utils/url_launcher.dart';
 import '../widgets/platform_badge.dart';
@@ -18,6 +21,40 @@ class JobDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('تفاصيل المشروع'),
         actions: [
+          IconButton(
+            tooltip: 'نسخ الرابط',
+            icon: const Icon(Icons.link_outlined),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: job.url));
+              HapticFeedback.lightImpact();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم نسخ الرابط'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            tooltip: 'حظر هذه الشركة',
+            icon: const Icon(Icons.block_outlined),
+            onPressed: () async {
+              final name = job.clientName;
+              if (name == null || name.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('اسم الشركة غير متوفر')),
+                );
+                return;
+              }
+              await context.read<CacheService>().toggleBlockCompany(name);
+              HapticFeedback.mediumImpact();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('تم حظر/إلغاء حظر: $name')),
+              );
+            },
+          ),
           Consumer<JobsProvider>(
             builder: (context, jobs, _) {
               final isFav = jobs.isFavorite(job.id) || job.isFavorite;
@@ -27,7 +64,10 @@ class JobDetailScreen extends StatelessWidget {
                   isFav ? Icons.favorite : Icons.favorite_border,
                   color: isFav ? Colors.redAccent : null,
                 ),
-                onPressed: () => jobs.toggleFavorite(job),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  jobs.toggleFavorite(job);
+                },
               );
             },
           ),
@@ -46,7 +86,9 @@ class JobDetailScreen extends StatelessWidget {
                     job.title,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  _ApplicationStatusRow(jobId: job.id),
+                  const SizedBox(height: 16),
                   _InfoCard(job: job),
                   const SizedBox(height: 20),
                   _SectionTitle('الوصف الكامل'),
@@ -111,6 +153,66 @@ class JobDetailScreen extends StatelessWidget {
       job.clientRating != null ||
       job.clientJobsPosted != null ||
       job.country != null;
+}
+
+class _ApplicationStatusRow extends StatelessWidget {
+  const _ApplicationStatusRow({required this.jobId});
+  final String jobId;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<JobsProvider>(
+      builder: (context, jobs, _) {
+        final current = jobs.getStatus(jobId);
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in AppConstants.statusLabels.entries)
+              if (entry.key != AppConstants.statusNone ||
+                  current != AppConstants.statusNone)
+                ChoiceChip(
+                  avatar: Icon(
+                    AppConstants.statusIcons[entry.key] ?? Icons.circle,
+                    size: 16,
+                    color: current == entry.key
+                        ? Colors.white
+                        : AppConstants.statusColors[entry.key],
+                  ),
+                  label: Text(entry.value),
+                  selected: current == entry.key,
+                  onSelected: (_) {
+                    HapticFeedback.selectionClick();
+                    jobs.setJobStatus(
+                      jobId,
+                      current == entry.key
+                          ? AppConstants.statusNone
+                          : entry.key,
+                    );
+                  },
+                  selectedColor: AppConstants.statusColors[entry.key],
+                  labelStyle: TextStyle(
+                    color: current == entry.key
+                        ? Colors.white
+                        : AppTheme.textPrimary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(
+                      color: (AppConstants.statusColors[entry.key] ??
+                              Colors.grey)
+                          .withValues(alpha: 0.4),
+                    ),
+                  ),
+                  showCheckmark: false,
+                ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -173,12 +173,12 @@ class AppTheme {
       bodySmall: TextStyle(
         fontFamily: _arabicFont,
         fontSize: 12,
-        color: baseColor.withOpacity(0.7),
+        color: baseColor.withValues(alpha: 0.7),
       ),
       labelSmall: TextStyle(
         fontFamily: _arabicFont,
         fontSize: 11,
-        color: baseColor.withOpacity(0.6),
+        color: baseColor.withValues(alpha: 0.6),
       ),
     );
   }

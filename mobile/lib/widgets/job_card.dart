@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../config/constants.dart';
 import '../config/theme.dart';
 import '../models/job_model.dart';
 import '../utils/time_ago.dart';
@@ -108,6 +109,11 @@ class JobCard extends StatelessWidget {
                     ],
                     const SizedBox(height: 10),
                     _MetaRow(job: job),
+                    if (job.applicationStatus !=
+                        AppConstants.statusNone) ...[
+                      const SizedBox(height: 8),
+                      _StatusBadge(status: job.applicationStatus),
+                    ],
                   ],
                 ),
               ),
@@ -128,7 +134,7 @@ class _BudgetPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.secondary.withOpacity(0.12),
+        color: AppTheme.secondary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -195,6 +201,41 @@ class _SkillChip extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppConstants.statusColors[status] ?? AppTheme.textSecondary;
+    final icon = AppConstants.statusIcons[status] ?? Icons.circle_outlined;
+    final label = AppConstants.statusLabels[status] ?? status;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }

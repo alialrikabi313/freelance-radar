@@ -16,6 +16,12 @@ class AppConstants {
   static const String kCachedJobs = 'cached_jobs_v1';
   static const String kReadJobIds = 'read_job_ids';
   static const String kFavoriteJobIds = 'favorite_job_ids';
+  static const String kJobStatuses = 'job_statuses_v1';
+  static const String kApplicationFilter = 'application_filter';
+  static const String kKeywordAlerts = 'keyword_alerts';
+  static const String kBlockedCompanies = 'blocked_companies';
+  static const String kNotifQuietStart = 'notif_quiet_start';
+  static const String kNotifQuietEnd = 'notif_quiet_end';
   static const String kNotificationsEnabled = 'notifications_enabled';
   static const String kNotificationBudget = 'notification_budget_threshold';
   static const String kNotificationIncludeUnknown =
@@ -133,6 +139,40 @@ class AppConstants {
 
   // — Quick budget thresholds (USD) —
   static const List<int> budgetThresholds = <int>[0, 500, 1000, 2000, 5000];
+
+  // — Application statuses —
+  static const String statusNone = 'none';
+  static const String statusInterested = 'interested';
+  static const String statusApplied = 'applied';
+  static const String statusRejected = 'rejected';
+
+  static const Map<String, String> statusLabels = <String, String>{
+    statusNone: 'بدون حالة',
+    statusInterested: 'مهتم',
+    statusApplied: 'قدّمت',
+    statusRejected: 'مرفوض/لم يناسبني',
+  };
+
+  static const Map<String, IconData> statusIcons = <String, IconData>{
+    statusNone: Icons.circle_outlined,
+    statusInterested: Icons.visibility_outlined,
+    statusApplied: Icons.check_circle,
+    statusRejected: Icons.cancel_outlined,
+  };
+
+  static const Map<String, Color> statusColors = <String, Color>{
+    statusNone: Color(0xFF94A3B8),
+    statusInterested: Color(0xFF3B82F6),
+    statusApplied: Color(0xFF10B981),
+    statusRejected: Color(0xFFEF4444),
+  };
+
+  // — Application filters —
+  static const String appFilterAll = 'all';
+  static const String appFilterHideApplied = 'hide_applied';
+  static const String appFilterOnlyApplied = 'only_applied';
+  static const String appFilterOnlyInterested = 'only_interested';
+  static const String appFilterNotReviewed = 'not_reviewed';
 }
 
 /// خيارات الترتيب المتاحة.

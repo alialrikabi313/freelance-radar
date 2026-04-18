@@ -7,6 +7,7 @@ import '../config/routes.dart';
 import '../config/theme.dart';
 import '../providers/filter_provider.dart';
 import '../providers/jobs_provider.dart';
+import '../widgets/application_filter_chips.dart';
 import '../widgets/budget_filter_chips.dart';
 import '../widgets/category_filter_chips.dart';
 import '../widgets/empty_state.dart';
@@ -168,6 +169,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.of(context).pushNamed(AppRoutes.favorites),
           ),
           IconButton(
+            tooltip: 'إحصائيات',
+            icon: const Icon(Icons.analytics_outlined),
+            onPressed: () =>
+                Navigator.of(context).pushNamed(AppRoutes.stats),
+          ),
+          IconButton(
             tooltip: 'ترتيب',
             icon: const Icon(Icons.sort_rounded),
             onPressed: _showSortSheet,
@@ -180,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_searchOpen ? 212 : 140),
+          preferredSize: Size.fromHeight(_searchOpen ? 260 : 184),
           child: Column(
             children: [
               if (_searchOpen)
@@ -191,6 +198,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     _reloadAfterFilterChange();
                   },
                 ),
+              // Application status filter (الجديد)
+              Consumer<JobsProvider>(
+                builder: (context, jobs, _) => ApplicationFilterChips(
+                  selected: jobs.applicationFilter,
+                  onChanged: (f) => jobs.setApplicationFilter(f),
+                ),
+              ),
+              const SizedBox(height: 4),
               // Platform chips
               Consumer<FilterProvider>(
                 builder: (context, filter, _) => PlatformFilterChips(

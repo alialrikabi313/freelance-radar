@@ -77,6 +77,101 @@ class CacheService {
     await _p.setStringList(AppConstants.kReadJobIds, list);
   }
 
+  // ───────────── Application statuses (محلي) ─────────────
+
+  /// يُرجع خريطة {job_id: status}.
+  Map<String, String> get jobStatuses {
+    final raw = _p.getString(AppConstants.kJobStatuses);
+    if (raw == null || raw.isEmpty) return <String, String>{};
+    try {
+      final m = json.decode(raw) as Map<String, dynamic>;
+      return m.map((k, v) => MapEntry(k, v.toString()));
+    } catch (_) {
+      return <String, String>{};
+    }
+  }
+
+  Future<void> setJobStatus(String jobId, String status) async {
+    final m = jobStatuses;
+    if (status == AppConstants.statusNone) {
+      m.remove(jobId);
+    } else {
+      m[jobId] = status;
+    }
+    // احتفظ بأحدث 500 فقط
+    if (m.length > 500) {
+      final entries = m.entries.toList()..removeRange(0, m.length - 500);
+      m
+        ..clear()
+        ..addEntries(entries);
+    }
+    await _p.setString(AppConstants.kJobStatuses, json.encode(m));
+  }
+
+  String getJobStatus(String jobId) =>
+      jobStatuses[jobId] ?? AppConstants.statusNone;
+
+  String get applicationFilter =>
+      _p.getString(AppConstants.kApplicationFilter) ??
+      AppConstants.appFilterAll;
+  Future<void> setApplicationFilter(String v) =>
+      _p.setString(AppConstants.kApplicationFilter, v);
+
+  // ───────────── Keyword alerts ─────────────
+
+  List<String> get keywordAlerts {
+    return _p.getStringList(AppConstants.kKeywordAlerts) ?? <String>[];
+  }
+
+  Future<void> setKeywordAlerts(List<String> list) =>
+      _p.setStringList(
+        AppConstants.kKeywordAlerts,
+        list.where((s) => s.trim().isNotEmpty).toList(),
+      );
+
+  // ───────────── Blocked companies ─────────────
+
+  Set<String> get blockedCompanies {
+    final saved = _p.getStringList(AppConstants.kBlockedCompanies);
+    return (saved ?? const <String>[]).toSet();
+  }
+
+  Future<void> toggleBlockCompany(String name) async {
+    final s = blockedCompanies;
+    if (s.contains(name)) {
+      s.remove(name);
+    } else {
+      s.add(name);
+    }
+    await _p.setStringList(
+      AppConstants.kBlockedCompanies,
+      s.toList(),
+    );
+  }
+
+  Future<void> clearBlockedCompanies() =>
+      _p.setStringList(AppConstants.kBlockedCompanies, const []);
+
+  // ───────────── Notification quiet hours ─────────────
+
+  int get notifQuietStart => _p.getInt(AppConstants.kNotifQuietStart) ?? -1;
+  int get notifQuietEnd => _p.getInt(AppConstants.kNotifQuietEnd) ?? -1;
+
+  Future<void> setNotifQuietHours(int startHour, int endHour) async {
+    await _p.setInt(AppConstants.kNotifQuietStart, startHour);
+    await _p.setInt(AppConstants.kNotifQuietEnd, endHour);
+  }
+
+  bool get isInQuietHours {
+    final s = notifQuietStart;
+    final e = notifQuietEnd;
+    if (s < 0 || e < 0) return false;
+    final now = DateTime.now().hour;
+    if (s == e) return false;
+    if (s < e) return now >= s && now < e;
+    return now >= s || now < e; // يعبر منتصف الليل
+  }
+
   // ───────────── Favorites (محلي) ─────────────
 
   Set<String> get favoriteJobIds {

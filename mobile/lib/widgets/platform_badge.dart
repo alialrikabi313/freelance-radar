@@ -21,9 +21,9 @@ class PlatformBadge extends StatelessWidget {
         vertical: compact ? 3 : 5,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

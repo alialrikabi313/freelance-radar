@@ -17,6 +17,7 @@ class Job {
     required this.isRead,
     required this.category,
     required this.isFavorite,
+    this.applicationStatus = 'none',
     this.budgetMin,
     this.budgetMax,
     this.clientName,
@@ -46,6 +47,7 @@ class Job {
   final bool isRead;
   final String category;
   final bool isFavorite;
+  final String applicationStatus;
   final String? country;
 
   factory Job.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -157,7 +159,12 @@ class Job {
     return '$symbol$lo - $symbol$hi$suffix';
   }
 
-  Job copyWith({bool? isRead, bool? isFavorite}) => Job(
+  Job copyWith({
+    bool? isRead,
+    bool? isFavorite,
+    String? applicationStatus,
+  }) =>
+      Job(
         id: id,
         platform: platform,
         title: title,
@@ -177,6 +184,7 @@ class Job {
         relevanceScore: relevanceScore,
         isRead: isRead ?? this.isRead,
         isFavorite: isFavorite ?? this.isFavorite,
+        applicationStatus: applicationStatus ?? this.applicationStatus,
         category: category,
         country: country,
       );

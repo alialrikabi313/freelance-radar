@@ -42,7 +42,7 @@ class BudgetFilterChips extends StatelessWidget {
               ),
               selected: includeUnknownBudget,
               onSelected: onToggleIncludeUnknown,
-              selectedColor: AppTheme.primary.withOpacity(0.15),
+              selectedColor: AppTheme.primary.withValues(alpha: 0.15),
               backgroundColor: const Color(0xFFFEF3C7),
               labelStyle: TextStyle(
                 color: includeUnknownBudget

@@ -14,57 +14,78 @@ CATEGORY_KEYWORDS: dict[str, list[str]] = {
     "mobile": [
         "flutter", "dart", "react native", "react-native",
         "mobile app", "mobile application", "mobile development",
-        "android app", "ios app", "iphone", "ipad",
+        "android app", "ios app", "iphone", "ipad", "tablet app",
         "swift", "swiftui", "kotlin", "jetpack compose",
-        "xamarin", "ionic", "cordova", "nativescript",
+        "xamarin", "ionic", "cordova", "nativescript", "capacitor",
         "cross-platform", "cross platform", "app store", "google play",
-        "تطبيق موبايل", "تطبيق جوال", "تطبيق هاتف",
-        "أندرويد", "اندرويد", "آيفون", "ايفون", "ايباد",
-        "فلاتر", "رياكت نيتيف",
+        "objective-c", "objective c", "android studio",
+        # Arabic
+        "تطبيق موبايل", "تطبيق جوال", "تطبيق هاتف", "تطبيق للجوال",
+        "أندرويد", "اندرويد", "آيفون", "ايفون", "ايباد", "هاتف محمول",
+        "فلاتر", "رياكت نيتيف", "تصميم تطبيق", "برمجة تطبيق",
     ],
     "web": [
         "html", "css", "react", "vue", "angular", "svelte",
         "next.js", "nextjs", "nuxt", "tailwind", "bootstrap",
         "website", "web app", "frontend", "front-end", "front end",
         "web design", "landing page", "wordpress theme", "webflow",
-        "واجهة ويب", "موقع", "تصميم موقع", "تطوير موقع",
+        "wix", "shopify dev", "woocommerce", "magento", "drupal",
+        "jquery", "sass", "scss", "webpack", "vite",
+        # Arabic
+        "واجهة ويب", "موقع الكتروني", "موقع إلكتروني", "تصميم موقع",
+        "تطوير موقع", "ووردبريس", "صفحة هبوط", "هبوط",
     ],
     "backend": [
         "backend", "back-end", "back end", "api",
         "node.js", "nodejs", "express", "django", "fastapi", "flask",
         "spring boot", "laravel", "ruby on rails", "rails", "asp.net",
         ".net", "microservices", "kubernetes", "docker", "serverless",
-        "aws", "gcp", "azure", "devops", "ci/cd",
-        "postgres", "mysql", "mongodb", "redis", "elasticsearch",
-        "خادم", "سيرفر", "قاعدة بيانات",
+        "aws", "gcp", "azure", "devops", "ci/cd", "terraform",
+        "postgres", "postgresql", "mysql", "mongodb", "redis",
+        "elasticsearch", "graphql", "grpc", "rest api", "rabbitmq", "kafka",
+        # Arabic
+        "خادم", "سيرفر", "قاعدة بيانات", "واجهة برمجية", "خلفية",
     ],
     "ai": [
         "machine learning", "deep learning", "neural network",
         "ai ", "artificial intelligence", "llm", "gpt",
-        "chatgpt", "openai", "langchain", "rag",
+        "chatgpt", "openai", "langchain", "rag", "llama",
         "computer vision", "nlp", "natural language",
-        "tensorflow", "pytorch", "huggingface",
-        "ذكاء اصطناعي", "تعلم آلي",
+        "tensorflow", "pytorch", "huggingface", "transformers",
+        "anthropic", "claude", "gemini", "stable diffusion",
+        "ml engineer", "mlops", "data scientist",
+        # Arabic
+        "ذكاء اصطناعي", "تعلم آلي", "تعلم عميق", "معالجة اللغة",
+        "رؤية حاسوبية", "شات بوت", "روبوت محادثة",
     ],
     "game": [
         "unity", "unreal", "godot", "game dev", "game development",
         "2d game", "3d game", "mobile game", "game design",
-        "تطوير لعبة", "لعبة", "يونيتي",
+        "gamemaker", "cocos2d", "roblox",
+        # Arabic
+        "تطوير لعبة", "تطوير العاب", "لعبة", "ألعاب", "يونيتي",
     ],
     "data": [
         "data science", "data analysis", "data analyst",
         "data engineering", "etl", "power bi", "tableau",
-        "pandas", "numpy", "spark", "airflow",
-        "تحليل بيانات", "علم بيانات",
+        "pandas", "numpy", "spark", "airflow", "dbt",
+        "snowflake", "bigquery", "databricks", "looker",
+        # Arabic
+        "تحليل بيانات", "علم بيانات", "هندسة بيانات", "محلل بيانات",
     ],
     "blockchain": [
         "blockchain", "solidity", "smart contract", "web3",
-        "ethereum", "nft", "crypto", "defi",
-        "بلوكتشين", "عقود ذكية",
+        "ethereum", "nft", "crypto", "defi", "dao",
+        "polygon", "bitcoin", "metamask", "hardhat", "foundry",
+        "rust smart", "near protocol", "solana",
+        # Arabic
+        "بلوكتشين", "عقود ذكية", "عملات رقمية", "عملة رقمية",
     ],
     "desktop": [
         "desktop app", "electron", "tauri", "qt", "wpf", "winforms",
-        "تطبيق سطح مكتب",
+        "macos app", "windows app", "linux app", "cross-platform desktop",
+        # Arabic
+        "تطبيق سطح مكتب", "برنامج ويندوز",
     ],
 }
 
